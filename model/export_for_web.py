@@ -251,13 +251,13 @@ def export_rider_timeseries(engine, engine_mt, out_dir, min_races):
                 last_mu, last_sg = mu, sg
             else:
                 mu, sg = last_mu, last_sg
-            traj.append({
-                "d":    snap["date"],
-                "elo":  round(elo(mu, sg, 0.0), 1),
-                "low":  round(elo(mu, sg, 2.0), 1),
-                "high": round(elo(mu, -sg, 2.0), 1),
-                "rode": rode,
-            })
+            if rode:
+                traj.append({
+                    "d":   snap["date"],
+                    "elo": round(elo(mu, sg, 0.0), 1),
+                    "low": round(elo(mu, sg, 2.0), 1),
+                    "high":round(elo(mu, -sg, 2.0), 1),
+                })
         return traj
 
     out = {}
