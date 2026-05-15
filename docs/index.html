@@ -665,35 +665,22 @@ function getRiderSeries(rider, track) {
 function buildPlotData() {
   const traces = [];
   const trackKey = state.activeTrack;
-  const useSafe = state.safeMode;
-  const valKey = useSafe ? 'low' : 'elo';
+  const valKey = state.safeMode ? 'low' : 'elo';
 
   state.selected.forEach(s => {
     const series = getRiderSeries(s.name, trackKey);
     if (!series || !series.length) return;
 
-    // separate carried-forward (faint dashed) from actually-rode (solid)
-    const x_all = [], y_all = [];
-    const x_rode = [], y_rode = [];
-    series.forEach(p => {
-      x_all.push(p.d);
-      y_all.push(p[valKey]);
-      if (p.rode) { x_rode.push(p.d); y_rode.push(p[valKey]); }
-    });
+    const x = series.map(p => p.d);
+    const y = series.map(p => p[valKey]);
 
-    // dashed carry line — faint
     traces.push({
-      x: x_all, y: y_all, name: s.name + ' (carry)',
-      type: 'scatter', mode: 'lines',
-      line: { color: s.color, width: 1, dash: 'dot' },
-      opacity: 0.35, hoverinfo: 'skip', showlegend: false,
-    });
-    // solid line on races they actually rode
-    traces.push({
-      x: x_rode, y: y_rode, name: s.name,
-      type: 'scatter', mode: 'lines+markers',
-      line: { color: s.color, width: 2.5, shape: 'spline', smoothing: 0.4 },
-      marker: { size: 5, color: s.color },
+      x, y,
+      name: s.name,
+      type: 'scatter',
+      mode: 'lines+markers',
+      line: { color: s.color, width: 2.5, shape: 'spline', smoothing: 0.6 },
+      marker: { size: 4, color: s.color },
       hovertemplate: '<b>%{fullData.name}</b><br>%{x}<br>Rating: <b>%{y:,.0f}</b><extra></extra>',
     });
   });
