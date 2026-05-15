@@ -6,7 +6,6 @@ on:
     paths:
       - 'data/**'
       - 'model/**'
-      - '.github/workflows/build-exports.yml'
   workflow_dispatch:
 
 jobs:
@@ -17,19 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install openskill numpy
+        run: uv sync
 
       - name: Run model and generate JSON exports
         run: |
-          python model/export_for_web.py \
+          uv run python model/export_for_web.py \
             --data-dir ./data \
             --out-dir ./docs/outputs \
             --min-races 2
