@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cycling BT Rankings · World Tour 2019–2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --c-yellow: #F5C842;
+    --c-accent: #E8431A;
+    --c-bg:     #0e0e0e;
+    --c-card:   #1a1a1a;
+    --c-mid:    #242424;
+    --c-text:   #f0f0f0;
+    --c-muted:  #888;
+    --c-faint:  #555;
+    --c-border: rgba(255,255,255,0.08);
+    --c-border-hi: rgba(255,255,255,0.16);
+    --font-head: 'Barlow Condensed', sans-serif;
+    --font-body: 'Barlow', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  html, body {
+    background: var(--c-bg);
+    color: var(--c-text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 1300px; margin: 0 auto; padding: 0 24px; }
+
+  /* ─── HERO ───────────────────────────────────────────────────────── */
+  .hero {
+    padding: 48px 0 32px;
+    border-bottom: 1px solid var(--c-border);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; right: -60px; top: -40px;
+    font-family: var(--font-head); font-size: 280px; font-weight: 700;
+    color: rgba(245,200,66,0.035); line-height: 1; pointer-events: none;
+    letter-spacing: -8px; user-select: none;
+  }
+  .hero-eyebrow {
+    font-family: var(--font-head); font-size: 12px;
+    letter-spacing: 4px; color: var(--c-yellow);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .hero-title {
+    font-family: var(--font-head); font-size: 64px;
+    font-weight: 700; line-height: 0.95; margin-bottom: 12px;
+    letter-spacing: -1.5px;
+  }
+  .hero-title span { color: var(--c-yellow); }
+  .hero-sub {
+    font-size: 15px; color: #999; max-width: 620px;
+    line-height: 1.55;
+  }
+
+  /* ─── STATS BAR ──────────────────────────────────────────────────── */
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 0; margin-top: 32px; border-top: 1px solid var(--c-border);
+  }
+  .stat {
+    padding: 18px 24px;
+    border-right: 1px solid var(--c-border);
+  }
+  .stat:last-child { border-right: none; }
+  .stat:first-child { padding-left: 0; }
+  .stat-val {
+    font-family: var(--font-head); font-size: 32px;
+    font-weight: 700; color: var(--c-yellow); line-height: 1;
+  }
+  .stat-label {
+    font-size: 11px; color: var(--c-muted);
+    margin-top: 6px; text-transform: uppercase; letter-spacing: 1.5px;
+  }
+
+  /* ─── LAYOUT ─────────────────────────────────────────────────────── */
+  .main {
+    padding: 32px 0 48px;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 32px;
+  }
+  .panel {
+    background: var(--c-card);
+    border: 1px solid var(--c-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 18px 22px 16px;
+    border-bottom: 1px solid var(--c-border);
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .panel-title {
+    font-family: var(--font-head); font-size: 11px;
+    letter-spacing: 2.5px; color: var(--c-muted);
+    text-transform: uppercase; flex-shrink: 0;
+  }
+  .panel-body { padding: 22px; }
+
+  /* ─── TRACK TABS ─────────────────────────────────────────────────── */
+  .track-tabs {
+    display: flex; gap: 6px; flex-wrap: wrap; flex: 1;
+  }
+  .tab {
+    padding: 6px 12px; border-radius: 4px;
+    font-family: var(--font-head); font-size: 12px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    cursor: pointer; border: 1px solid var(--c-border);
+    color: var(--c-muted); background: transparent;
+    transition: all 0.15s;
+  }
+  .tab.active {
+    background: var(--c-yellow); color: #111;
+    font-weight: 700; border-color: var(--c-yellow);
+  }
+  .tab:not(.active):hover {
+    border-color: var(--c-border-hi); color: #ddd;
+  }
+
+  /* ─── MODE TOGGLE ────────────────────────────────────────────────── */
+  .mode-toggle {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--c-muted);
+    font-family: var(--font-head); letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .mode-toggle .switch {
+    position: relative; width: 34px; height: 18px;
+    background: var(--c-mid); border-radius: 10px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .mode-toggle .switch.on { background: var(--c-yellow); }
+  .mode-toggle .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; background: #f0f0f0; border-radius: 50%;
+    transition: transform 0.15s;
+  }
+  .mode-toggle .switch.on::after { transform: translateX(16px); background: #111; }
+
+  /* ─── CHART AREA ─────────────────────────────────────────────────── */
+  .chart-wrap {
+    position: relative; width: 100%; height: 420px;
+    margin-top: 8px;
+  }
+
+  /* ─── SEARCH ─────────────────────────────────────────────────────── */
+  .search-box {
+    position: relative; margin-bottom: 14px;
+  }
+  .search-input {
+    width: 100%; background: var(--c-mid);
+    border: 1px solid var(--c-border); border-radius: 6px;
+    padding: 9px 14px 9px 38px;
+    color: var(--c-text); font-family: var(--font-body); font-size: 14px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: var(--c-yellow); }
+  .search-input::placeholder { color: var(--c-faint); }
+  .search-icon {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%); color: var(--c-faint);
+    font-size: 14px; pointer-events: none;
+  }
+  .autocomplete {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--c-card); border: 1px solid var(--c-border);
+    border-radius: 6px; margin-top: 4px; max-height: 240px;
+    overflow-y: auto; z-index: 20; display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .autocomplete.open { display: block; }
+  .ac-item {
+    padding: 9px 14px; font-size: 13px;
+    cursor: pointer; color: #ccc;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.focused { background: var(--c-mid); color: #fff; }
+  .ac-item .race-count { color: var(--c-faint); font-size: 11px; float: right; }
+
+  /* ─── PILLS ──────────────────────────────────────────────────────── */
+  .pills {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 14px; min-height: 28px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px 4px 11px; border-radius: 20px;
+    font-family: var(--font-head); font-size: 12px;
+    letter-spacing: 0.5px; border: 1px solid;
+    transition: opacity 0.15s;
+  }
+  .pill-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .pill-x {
+    margin-left: 4px; cursor: pointer; opacity: 0.5;
+    font-size: 13px; line-height: 1;
+  }
+  .pill-x:hover { opacity: 1; }
+
+  /* ─── TOP-N LIST ─────────────────────────────────────────────────── */
+  .top-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 540px; overflow-y: auto; padding-right: 4px;
+  }
+  .top-list::-webkit-scrollbar { width: 6px; }
+  .top-list::-webkit-scrollbar-thumb { background: var(--c-mid); border-radius: 3px; }
+  .top-item {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 10px; align-items: center;
+    padding: 9px 11px; background: var(--c-mid);
+    border-radius: 6px; border: 1px solid transparent;
+    transition: all 0.15s; cursor: pointer;
+  }
+  .top-item:hover {
+    border-color: rgba(245,200,66,0.3);
+    transform: translateX(2px);
+  }
+  .top-rank {
+    font-family: var(--font-head); font-size: 18px;
+    font-weight: 700; text-align: center;
+  }
+  .top-rank.gold   { color: #F5C842; }
+  .top-rank.silver { color: #C0C0C0; }
+  .top-rank.bronze { color: #CD7F32; }
+  .top-rank.other  { color: var(--c-faint); }
+  .top-name {
+    font-size: 13px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .top-meta {
+    font-size: 11px; color: var(--c-faint); margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+  .top-score {
+    font-family: var(--font-head); font-size: 17px;
+    font-weight: 700; color: var(--c-yellow); text-align: right;
+    line-height: 1;
+  }
+  .top-score-sub {
+    font-size: 10px; color: var(--c-faint);
+    text-align: right; margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  /* ─── TIMELINE ───────────────────────────────────────────────────── */
+  .timeline-panel { margin-top: 24px; padding: 22px; }
+  .timeline-header {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 14px;
+  }
+  .timeline-header > div:first-child {
+    font-family: var(--font-head); font-size: 11px;
+    letter-spacing: 2.5px; color: var(--c-muted); text-transform: uppercase;
+  }
+  .timeline-snap {
+    font-family: var(--font-head); font-size: 18px;
+    font-weight: 700; color: var(--c-yellow);
+  }
+  .timeline-slider {
+    width: 100%; height: 6px; background: var(--c-mid);
+    border-radius: 3px; appearance: none; outline: none; cursor: pointer;
+    margin: 8px 0;
+  }
+  .timeline-slider::-webkit-slider-thumb {
+    appearance: none; width: 18px; height: 18px;
+    background: var(--c-yellow); border-radius: 50%;
+    cursor: pointer; border: 3px solid #111;
+  }
+  .timeline-slider::-moz-range-thumb {
+    width: 18px; height: 18px;
+    background: var(--c-yellow); border-radius: 50%;
+    cursor: pointer; border: 3px solid #111;
+  }
+  .timeline-ends {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--c-faint);
+    font-family: var(--font-mono); margin-top: 6px;
+  }
+
+  /* ─── LOADING ────────────────────────────────────────────────────── */
+  .loader {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 50vh; gap: 16px;
+  }
+  .loader-spin {
+    width: 40px; height: 40px; border: 3px solid var(--c-border);
+    border-top-color: var(--c-yellow); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text {
+    font-family: var(--font-head); font-size: 13px;
+    color: var(--c-muted); letter-spacing: 2px; text-transform: uppercase;
+  }
+  .error-msg {
+    background: #2a1717; border: 1px solid #5a2828; border-radius: 8px;
+    padding: 18px 22px; margin: 24px 0; color: #f0a8a8;
+    font-family: var(--font-mono); font-size: 13px;
+  }
+  .error-msg .title {
+    color: #ff7a7a; font-weight: 600; margin-bottom: 6px;
+    font-family: var(--font-head); font-size: 14px; letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ─── FOOTER ─────────────────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--c-border);
+    padding: 24px 0 32px;
+    font-size: 12px; color: var(--c-faint);
+    font-family: var(--font-mono);
+  }
+  footer .container {
+    display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  }
+  footer a { color: var(--c-muted); text-decoration: none; }
+  footer a:hover { color: var(--c-yellow); }
+
+  /* ─── RESPONSIVE ─────────────────────────────────────────────────── */
+  @media (max-width: 1000px) {
+    .main { grid-template-columns: 1fr; }
+    .hero-title { font-size: 48px; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .stat { border-right: none; border-bottom: 1px solid var(--c-border); }
+  }
+  @media (max-width: 600px) {
+    .hero-title { font-size: 36px; }
+    .hero { padding: 32px 0 24px; }
+    .container { padding: 0 16px; }
+    .panel-body { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loader" class="loader">
+  <div class="loader-spin"></div>
+  <div class="loader-text">Loading rankings…</div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <!-- HERO ─────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="container" style="position: relative;">
+      <div class="hero-bg">BT</div>
+      <div class="hero-eyebrow" id="heroEyebrow">World Tour</div>
+      <h1 class="hero-title">Time-Aware <span>Bradley–Terry</span><br/>Rider Rankings</h1>
+      <p class="hero-sub">
+        Partial-pairing Bradley–Terry model with calendar-time σ inflation
+        and race-importance τ scaling. Each rider has a (μ, σ) at every point
+        in time across 8 discipline tracks.
+      </p>
+
+      <div class="stats-bar">
+        <div class="stat"><div class="stat-val" id="statRiders">—</div><div class="stat-label">Riders ranked</div></div>
+        <div class="stat"><div class="stat-val" id="statRaces">—</div><div class="stat-label">Races modelled</div></div>
+        <div class="stat"><div class="stat-val" id="statTracks">8</div><div class="stat-label">Discipline tracks</div></div>
+        <div class="stat"><div class="stat-val" id="statSpan">—</div><div class="stat-label">Date range</div></div>
+        <div class="stat"><div class="stat-val" id="statUpdate">—</div><div class="stat-label">Last update</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN ─────────────────────────────────────────────────────────── -->
+  <section class="container">
+    <div class="main">
+
+      <!-- CHART -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Rider rating · over time</span>
+          <div class="track-tabs" id="trackTabs"></div>
+          <div class="mode-toggle">
+            <span>μ−2σ safe</span>
+            <div class="switch" id="modeSwitch"></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="search-box">
+            <span class="search-icon">⌕</span>
+            <input class="search-input" id="riderInput"
+                   placeholder="Search and add a rider…" autocomplete="off" />
+            <div class="autocomplete" id="acBox"></div>
+          </div>
+          <div class="pills" id="pills"></div>
+          <div class="chart-wrap" id="plotDiv"></div>
+        </div>
+      </div>
+
+      <!-- TOP-N -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Top 10 at snapshot</span>
+        </div>
+        <div class="panel-body">
+          <div class="top-list" id="topList"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="panel timeline-panel">
+      <div class="timeline-header">
+        <div>Snapshot date</div>
+        <div class="timeline-snap" id="snapLabel">—</div>
+      </div>
+      <input type="range" class="timeline-slider" id="timeSlider"
+             min="0" max="100" value="100" step="1" />
+      <div class="timeline-ends">
+        <span id="timeStart">—</span>
+        <span id="timeEnd">—</span>
+      </div>
+    </div>
+
+  </section>
+
+  <footer>
+    <div class="container">
+      <div>
+        Time-aware Bradley–Terry · μ-centred 1500, scale ×60 ·
+        τ-base = 25/300 · window = 16
+      </div>
+      <div>
+        <a href="https://github.com/openskill" target="_blank">openskill</a> ·
+        Built with Plotly.js
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div id="errorBox" style="display:none;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.27.0/plotly.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// Configuration & state
+// ════════════════════════════════════════════════════════════════════════════
+const COLORS = ['#F5C842','#E8431A','#4AAFFF','#6DE89A',
+                '#D86CF5','#FF8C42','#FFFFFF','#FF5577'];
+
+const TRACK_LABELS = {
+  ALL: 'All races', composite: 'Composite',
+  sprint: 'Sprint', TT: 'Time trial', cobbles: 'Cobbles',
+  punch: 'Punch', mountain: 'Mountain', GC: 'GC',
+  stage_race: 'Stage race', classics: 'Classics',
+};
+
+// Display order for tabs
+const TRACK_ORDER = ['ALL','GC','stage_race','mountain','classics',
+                     'sprint','punch','cobbles','TT'];
+
+const state = {
+  meta: null,
+  riderSeries: null,    // { rider: { ALL: [...], GC: [...], ... } }
+  topHistory: null,     // { ALL: [{date, race, top:[]}], ... }
+  currentTop: null,     // initial render (latest snapshot)
+  activeTrack: 'ALL',
+  safeMode: false,
+  selected: [],         // [{name, color}]
+  timeIdx: null,        // index into topHistory[activeTrack]
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Data loading
+// ════════════════════════════════════════════════════════════════════════════
+async function loadData() {
+  const base = './outputs/';
+  const [meta, series, hist, current] = await Promise.all([
+    fetch(base + 'meta.json').then(r => r.json()),
+    fetch(base + 'rider_timeseries.json').then(r => r.json()),
+    fetch(base + 'top5_history.json').then(r => r.json()),
+    fetch(base + 'current_top5.json').then(r => r.json()),
+  ]);
+  return { meta, series, hist, current };
+}
+
+function showError(msg, detail) {
+  document.getElementById('loader').style.display = 'none';
+  const box = document.getElementById('errorBox');
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div class="container">
+      <div class="error-msg">
+        <div class="title">⚠ Could not load data</div>
+        <div>${msg}</div>
+        ${detail ? `<div style="margin-top:10px;opacity:0.7;">${detail}</div>` : ''}
+        <div style="margin-top:12px;opacity:0.7;">
+          Run <code style="background:#000;padding:2px 6px;border-radius:3px;">
+          python model/export_for_web.py</code> first to generate
+          <code style="background:#000;padding:2px 6px;border-radius:3px;">docs/outputs/*.json</code>.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Hero stats
+// ════════════════════════════════════════════════════════════════════════════
+function renderHero() {
+  const m = state.meta;
+  document.getElementById('statRiders').textContent = m.qualifying_riders.toLocaleString();
+  document.getElementById('statRaces').textContent  = m.total_races.toLocaleString();
+  document.getElementById('statTracks').textContent = m.tracks.length;
+
+  const first = new Date(m.first_race_date);
+  const last  = new Date(m.last_race_date);
+  const fmt = d => d.toLocaleDateString('en-GB', { year: 'numeric' });
+  document.getElementById('statSpan').textContent = `${fmt(first)}–${fmt(last)}`;
+
+  const upd = new Date(m.generated_at);
+  document.getElementById('statUpdate').textContent =
+    upd.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+
+  document.getElementById('heroEyebrow').textContent =
+    `World Tour · ${fmt(first)} – ${fmt(last)}`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Track tabs
+// ════════════════════════════════════════════════════════════════════════════
+function renderTabs() {
+  const container = document.getElementById('trackTabs');
+  const available = TRACK_ORDER.filter(t => t in state.topHistory);
+  container.innerHTML = available.map(t => `
+    <div class="tab ${t === state.activeTrack ? 'active' : ''}"
+         data-track="${t}">${TRACK_LABELS[t] || t}</div>
+  `).join('');
+  container.querySelectorAll('.tab').forEach(el => {
+    el.addEventListener('click', () => {
+      state.activeTrack = el.dataset.track;
+      state.timeIdx = state.topHistory[state.activeTrack].length - 1;
+      renderTabs();
+      renderTimelineBounds();
+      renderTopList();
+      updatePlot();
+    });
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Search & pills
+// ════════════════════════════════════════════════════════════════════════════
+function getAllRiders() {
+  return Object.keys(state.riderSeries).sort();
+}
+
+function setupSearch() {
+  const input  = document.getElementById('riderInput');
+  const acBox  = document.getElementById('acBox');
+  const allRiders = getAllRiders();
+  let focusedIdx = -1;
+
+  function filterRiders(q) {
+    if (!q) return [];
+    const ql = q.toLowerCase();
+    return allRiders
+      .filter(r => r.toLowerCase().includes(ql)
+                && !state.selected.find(s => s.name === r))
+      .slice(0, 8);
+  }
+
+  function renderAC(matches) {
+    if (!matches.length) { acBox.classList.remove('open'); return; }
+    acBox.innerHTML = matches.map((r, i) => {
+      const trackName = state.activeTrack === 'composite' ? 'ALL' : state.activeTrack;
+      const series = state.riderSeries[r][trackName] || state.riderSeries[r]['ALL'];
+      const rideCount = series ? series.filter(p => p.rode).length : 0;
+      return `<div class="ac-item" data-name="${r}">
+                ${r}<span class="race-count">${rideCount} races</span>
+              </div>`;
+    }).join('');
+    acBox.classList.add('open');
+    focusedIdx = -1;
+  }
+
+  input.addEventListener('input', () => {
+    renderAC(filterRiders(input.value.trim()));
+  });
+  input.addEventListener('focus', () => {
+    if (input.value.trim()) renderAC(filterRiders(input.value.trim()));
+  });
+  input.addEventListener('keydown', e => {
+    const items = acBox.querySelectorAll('.ac-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusedIdx = Math.min(focusedIdx + 1, items.length - 1);
+      items.forEach((it, i) => it.classList.toggle('focused', i === focusedIdx));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      focusedIdx = Math.max(focusedIdx - 1, 0);
+      items.forEach((it, i) => it.classList.toggle('focused', i === focusedIdx));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const pick = focusedIdx >= 0 ? items[focusedIdx] : items[0];
+      if (pick) addRider(pick.dataset.name);
+    } else if (e.key === 'Escape') {
+      acBox.classList.remove('open');
+    }
+  });
+  acBox.addEventListener('click', e => {
+    const item = e.target.closest('.ac-item');
+    if (item) addRider(item.dataset.name);
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-box')) acBox.classList.remove('open');
+  });
+}
+
+function addRider(name) {
+  if (state.selected.find(s => s.name === name)) return;
+  if (state.selected.length >= 8) return;
+  const usedColors = new Set(state.selected.map(s => s.color));
+  const color = COLORS.find(c => !usedColors.has(c)) || COLORS[0];
+  state.selected.push({ name, color });
+  document.getElementById('riderInput').value = '';
+  document.getElementById('acBox').classList.remove('open');
+  renderPills();
+  updatePlot();
+}
+
+function removeRider(name) {
+  state.selected = state.selected.filter(s => s.name !== name);
+  renderPills();
+  updatePlot();
+}
+window.removeRider = removeRider;
+
+function renderPills() {
+  const html = state.selected.map(s => `
+    <span class="pill" style="border-color:${s.color}55; background:${s.color}14; color:${s.color};">
+      <span class="pill-dot" style="background:${s.color};"></span>
+      ${s.name}
+      <span class="pill-x" onclick="removeRider('${s.name.replace(/'/g, "\\'")}')">×</span>
+    </span>`).join('');
+  document.getElementById('pills').innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Plot
+// ════════════════════════════════════════════════════════════════════════════
+function getRiderSeries(rider, track) {
+  // composite has no per-rider series — fall back to ALL
+  const t = track === 'composite' ? 'ALL' : track;
+  return state.riderSeries[rider]?.[t] || null;
+}
+
+function buildPlotData() {
+  const traces = [];
+  const trackKey = state.activeTrack;
+  const useSafe = state.safeMode;
+  const valKey = useSafe ? 'low' : 'elo';
+
+  state.selected.forEach(s => {
+    const series = getRiderSeries(s.name, trackKey);
+    if (!series || !series.length) return;
+
+    // separate carried-forward (faint dashed) from actually-rode (solid)
+    const x_all = [], y_all = [];
+    const x_rode = [], y_rode = [];
+    series.forEach(p => {
+      x_all.push(p.d);
+      y_all.push(p[valKey]);
+      if (p.rode) { x_rode.push(p.d); y_rode.push(p[valKey]); }
+    });
+
+    // dashed carry line — faint
+    traces.push({
+      x: x_all, y: y_all, name: s.name + ' (carry)',
+      type: 'scatter', mode: 'lines',
+      line: { color: s.color, width: 1, dash: 'dot' },
+      opacity: 0.35, hoverinfo: 'skip', showlegend: false,
+    });
+    // solid line on races they actually rode
+    traces.push({
+      x: x_rode, y: y_rode, name: s.name,
+      type: 'scatter', mode: 'lines+markers',
+      line: { color: s.color, width: 2.5, shape: 'spline', smoothing: 0.4 },
+      marker: { size: 5, color: s.color },
+      hovertemplate: '<b>%{fullData.name}</b><br>%{x}<br>Rating: <b>%{y:,.0f}</b><extra></extra>',
+    });
+  });
+
+  return traces;
+}
+
+const PLOT_LAYOUT = {
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor:  'rgba(0,0,0,0)',
+  margin: { t: 18, b: 50, l: 60, r: 16 },
+  font:   { family: 'Barlow, sans-serif', color: '#888', size: 12 },
+  xaxis: {
+    showgrid: false, zeroline: false,
+    tickfont: { size: 11, color: '#777' },
+    linecolor: 'rgba(255,255,255,0.1)', tickcolor: 'rgba(255,255,255,0.1)',
+  },
+  yaxis: {
+    showgrid: true, gridcolor: 'rgba(255,255,255,0.05)', zeroline: false,
+    tickfont: { size: 11, color: '#777' },
+    title: { text: 'Rating (ELO-like, base 1500)',
+             font: { size: 11, color: '#888' }, standoff: 14 },
+  },
+  legend: {
+    orientation: 'h', x: 0, y: -0.18,
+    font: { size: 12, color: '#bbb' }, bgcolor: 'rgba(0,0,0,0)',
+  },
+  hovermode: 'x unified',
+  hoverlabel: {
+    bgcolor: '#1a1a1a', bordercolor: 'rgba(255,255,255,0.12)',
+    font: { color: '#f0f0f0', family: 'Barlow', size: 13 },
+  },
+  shapes: [{
+    type: 'line', xref: 'paper', x0: 0, x1: 1,
+    yref: 'y', y0: 1500, y1: 1500,
+    line: { color: 'rgba(255,255,255,0.15)', width: 1, dash: 'dot' },
+  }],
+};
+
+let plotInitialized = false;
+function updatePlot() {
+  const data = buildPlotData();
+  const config = { responsive: true, displayModeBar: false };
+  // re-vertical-line for current snapshot
+  const snap = state.topHistory[state.activeTrack][state.timeIdx];
+  const layout = { ...PLOT_LAYOUT, shapes: [
+    { type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 1500, y1: 1500,
+      line: { color: 'rgba(255,255,255,0.15)', width: 1, dash: 'dot' }},
+    { type: 'line', xref: 'x', x0: snap.date, x1: snap.date,
+      yref: 'paper', y0: 0, y1: 1,
+      line: { color: '#F5C842', width: 1, dash: 'dash' }, opacity: 0.4 },
+  ]};
+  if (!plotInitialized) {
+    Plotly.newPlot('plotDiv', data, layout, config);
+    plotInitialized = true;
+  } else {
+    Plotly.react('plotDiv', data, layout, config);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Top-N list
+// ════════════════════════════════════════════════════════════════════════════
+function renderTopList() {
+  const hist = state.topHistory[state.activeTrack];
+  if (!hist || !hist.length) {
+    document.getElementById('topList').innerHTML =
+      `<div style="padding:20px;color:#666;font-family:var(--font-mono);font-size:12px;">No data for this track.</div>`;
+    return;
+  }
+  const snap = hist[state.timeIdx];
+  const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' :
+                          i === 2 ? 'bronze' : 'other';
+  document.getElementById('topList').innerHTML = snap.top.map((r, i) => `
+    <div class="top-item" data-rider="${r.name.replace(/"/g, '&quot;')}">
+      <div class="top-rank ${rankClass(i)}">${i + 1}</div>
+      <div>
+        <div class="top-name">${r.name}</div>
+        <div class="top-meta">${r.races} races</div>
+      </div>
+      <div>
+        <div class="top-score">${Math.round(r.elo).toLocaleString()}</div>
+        <div class="top-score-sub">low ${Math.round(r.low)}</div>
+      </div>
+    </div>
+  `).join('');
+  document.querySelectorAll('.top-item').forEach(el => {
+    el.addEventListener('click', () => addRider(el.dataset.rider));
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Timeline
+// ════════════════════════════════════════════════════════════════════════════
+function renderTimelineBounds() {
+  const hist = state.topHistory[state.activeTrack];
+  const slider = document.getElementById('timeSlider');
+  slider.min = 0;
+  slider.max = hist.length - 1;
+  slider.value = state.timeIdx;
+  updateSnapLabel();
+  document.getElementById('timeStart').textContent =
+    formatDate(hist[0].date);
+  document.getElementById('timeEnd').textContent =
+    formatDate(hist[hist.length - 1].date);
+}
+
+function formatDate(s) {
+  return new Date(s).toLocaleDateString('en-GB',
+    { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function updateSnapLabel() {
+  const snap = state.topHistory[state.activeTrack][state.timeIdx];
+  document.getElementById('snapLabel').textContent =
+    `${formatDate(snap.date)} · ${snap.race}`;
+}
+
+function setupTimeline() {
+  const slider = document.getElementById('timeSlider');
+  slider.addEventListener('input', () => {
+    state.timeIdx = parseInt(slider.value);
+    updateSnapLabel();
+    renderTopList();
+    updatePlot();
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Mode toggle
+// ════════════════════════════════════════════════════════════════════════════
+function setupModeToggle() {
+  const sw = document.getElementById('modeSwitch');
+  sw.addEventListener('click', () => {
+    state.safeMode = !state.safeMode;
+    sw.classList.toggle('on', state.safeMode);
+    updatePlot();
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Boot
+// ════════════════════════════════════════════════════════════════════════════
+async function init() {
+  let data;
+  try {
+    data = await loadData();
+  } catch (err) {
+    showError('Failed to fetch the rankings JSON files.',
+              err && err.message ? err.message : '');
+    console.error(err);
+    return;
+  }
+
+  state.meta         = data.meta;
+  state.riderSeries  = data.series;
+  state.topHistory   = data.hist;
+  state.currentTop   = data.current;
+  state.timeIdx      = state.topHistory['ALL'].length - 1;
+
+  renderHero();
+  renderTabs();
+  renderTimelineBounds();
+  setupSearch();
+  setupTimeline();
+  setupModeToggle();
+
+  // Pre-select a few notable riders if they exist
+  const defaults = ['Pogačar Tadej', 'Vingegaard Jonas',
+                    'Evenepoel Remco', 'van der Poel Mathieu'];
+  defaults.forEach(name => {
+    if (state.riderSeries[name]) {
+      state.selected.push({
+        name, color: COLORS[state.selected.length]
+      });
+    }
+  });
+  renderPills();
+  renderTopList();
+  updatePlot();
+
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+init();
+</script>
+</body>
+</html>
