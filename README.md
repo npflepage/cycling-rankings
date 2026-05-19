@@ -8,68 +8,100 @@ static dashboard on GitHub Pages.
 1. **`Cycling_BT_TimeAware.ipynb`** — your existing notebook builds the
    `BTEngine` and `BTEngineMultiTrack` from the per-year JSON race files.
 2. **`model/export_for_web.py`** — the *same* engine logic, refactored
-   into a CLI script. Loads `data/*.json`, runs the cumulative engine and
-   the 8 per-track engines, then writes 4 lightweight JSON files into
-   `docs/outputs/`.
+   into a CLI script. Loads `data/*.json`, runs the cumulative engine, the
+   8 per-track engines and the cross-discipline **composite** trajectory,
+   then writes 4 lightweight JSON files into `docs/outputs/`.
 3. **`docs/index.html`** — single-file static dashboard. Fetches the four
-   JSON files on load and renders an interactive Plotly chart, a top-10
-   panel, and a timeline scrubber. No backend, no build step.
+   JSON files on load and renders the interactive chart, snapshot Top 10,
+   a live head-to-head calculator, the "#1 club", and an all-time GOAT
+   board. No backend, no build step.
 
 ## Repo layout
 
 ```
 .
 ├── data/                        ← per-year race data (one JSON per year)
-│   ├── 2019.json
-│   ├── 2020.json
-│   └── ...
+│   ├── 2019.json … 2026.json
 ├── model/
 │   └── export_for_web.py        ← runs the model, writes JSON exports
 ├── docs/                        ← what GitHub Pages serves
 │   ├── index.html               ← the landing page
-│   └── outputs/                 ← generated, gitignored if you prefer
+│   └── outputs/                 ← generated
 │       ├── meta.json
 │       ├── rider_timeseries.json
-│       ├── top5_history.json
-│       └── current_top5.json
+│       ├── top_history.json
+│       └── hall_of_fame.json
 └── Cycling_BT_TimeAware.ipynb   ← your original notebook (untouched)
 ```
 
 ## Quick start (locally)
 
 ```bash
-# 1. install deps
 pip install openskill numpy
-
-# 2. run the model and write JSON outputs
 python model/export_for_web.py --data-dir ./data --out-dir ./docs/outputs
-
-# 3. preview the page locally (any static server will do)
-cd docs && python -m http.server 8000
-# → open http://localhost:8000
+cd docs && python -m http.server 8000      # → http://localhost:8000
 ```
 
 ## Deploying to GitHub Pages
 
-1. Push this repo to GitHub.
-2. Go to **Settings → Pages**.
-3. Set **Source** to **Deploy from a branch**, **Branch** = `main`, **Folder** = `/docs`.
-4. Save. After ~1 minute, your dashboard is live at
-   `https://<your-username>.github.io/<repo-name>/`.
+Settings → Pages → Deploy from a branch → `main` → `/docs`. Live in ~1 min
+at `https://<user>.github.io/<repo>/`.
 
-That's it — no build pipeline, no Node, no React.
+## The four JSON exports
 
-## Auto-rebuild on push (optional)
+| File                    | Purpose                                                                 |
+|-------------------------|-------------------------------------------------------------------------|
+| `meta.json`             | stats bar, params (incl. `beta`, display scale), composite config       |
+| `rider_timeseries.json` | per-rider `{d, m, s}` per track + `{d, v, vs}` for the composite        |
+| `top_history.json`      | per snapshot, `top` (μ order) **and** `top_safe` (μ−2σ order)           |
+| `hall_of_fame.json`     | per track: #1 `reigns` + all-time `goat`, for `normal` and `safe`       |
 
-The included `.github/workflows/build-exports.yml` runs the model on
-every push to `main` and commits the regenerated `docs/outputs/*.json`
-files back. Skip this if you'd rather run the exports locally.
+### Why these, and what's computed where
 
-## How the engine maps to the JSON
+- The timeseries stores **raw (μ, σ)**, not display ELO. The page derives
+  the ELO / safe-ELO line itself, so the **safe toggle redraws instantly**,
+  and — more importantly — it can run the **head-to-head win probability
+  online** for *any* pair without a precomputed O(n²) matrix.
+- Anything that depends only on *(track, metric)* and is expensive
+  (per-snapshot rankings, #1 reigns, all-time peaks, the composite) is
+  baked into static JSON so the page stays a dumb fast renderer.
 
-The exporter calls the same `BTEngine.process_race` and
-`BTEngineMultiTrack.process_race` you defined in the notebook, with
-identical constants:
+### Head-to-head probability
+
+Uses the Thurstone–Mosteller link (openskill's `predict_win`), which
+accounts for **both** riders' uncertainty:
+
+```
+P(A beats B) = Φ( (rA − rB) / sqrt(2·β² + σA² + σB²) )
+r = μ − z·σ        (z = 2 in safe mode, else 0)
+```
+
+β is exported in `meta.params.beta`; Φ is the normal CDF (an `erf`
+approximation in JS). Evaluated live at the selected snapshot.
+
+## The composite ("Cumulative") score
+
+The 8 BT tracks overlap (`classics ⊃ punch`, `stage_race ⊃ GC`, …), so the
+composite is built only from the **disjoint type tracks**:
+
+```
+cobbles · punch · mountain · sprint · GC
+```
+
+At every point on the unified timeline each track's effective skill
+(`μ − zσ`) is z-scored against that track's current field, weighted by
+`(1/σ) · track_weight`, then averaged over the tracks the rider qualifies
+in. **GC is up-weighted** (default `1.75`) because holding form across a
+3-week tour is a stronger all-round signal than isolated stage wins.
+
+Tweak in `export_for_web.py`:
+
+```python
+COMPOSITE_TRACKS  = ["cobbles", "punch", "mountain", "sprint", "GC"]
+COMPOSITE_WEIGHTS = {"cobbles":1.0,"punch":1.0,"mountain":1.0,"sprint":1.0,"GC":1.75}
+```
+
+## Engine constants
 
 | Parameter      | Value           |
 |----------------|----------------:|
@@ -81,16 +113,19 @@ identical constants:
 | `WINDOW_SIZE`  | 16              |
 | Display scale  | 1500 + 60·(μ−μ₀) |
 
-Tracks: `sprint`, `TT`, `cobbles`, `punch`, `mountain`, `GC`,
-`stage_race`, `classics`. The "All races" view uses the cumulative
-single-engine view.
+## What the controls affect
+
+- **Track tab + safe toggle** → *everything* (chart, Top 10, head-to-head,
+  #1 club, GOAT). The Top 10 now flips between μ and μ−2σ order.
+- **Timeline slider** → chart, snapshot Top 10, head-to-head only. The #1
+  club and GOAT always span the full period.
+- All charts use **linear interpolation** between points (no spline) so the
+  genuinely noisy trajectory isn't smoothed away.
 
 ## Tweaking the dashboard
 
-- **Default riders**: edit the `defaults` array near the bottom of
-  `docs/index.html` (`init()` function).
-- **Top-N count**: pass `top_n=...` to `export_top5_history` /
-  `export_current_top5` in `export_for_web.py`.
-- **Snapshot density**: pass `--downsample 5` to skip every 5th race in
-  the top-N history (smaller JSON, coarser scrubber).
+- **Default chart riders**: `defaults` array in `init()` in `index.html`.
+- **GC weight / composite tracks**: constants above in `export_for_web.py`.
+- **Top-N / GOAT-N**: `top_n` / `goat_n` args in the export functions.
+- **Scrubber density**: `--downsample 5` (reigns/GOAT stay full-resolution).
 - **Colors / typography**: CSS variables at the top of `index.html`.

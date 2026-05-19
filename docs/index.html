@@ -70,10 +70,7 @@
     display: grid; grid-template-columns: repeat(5, 1fr);
     gap: 0; margin-top: 32px; border-top: 1px solid var(--c-border);
   }
-  .stat {
-    padding: 18px 24px;
-    border-right: 1px solid var(--c-border);
-  }
+  .stat { padding: 18px 24px; border-right: 1px solid var(--c-border); }
   .stat:last-child { border-right: none; }
   .stat:first-child { padding-left: 0; }
   .stat-val {
@@ -86,11 +83,10 @@
   }
 
   /* ─── LAYOUT ─────────────────────────────────────────────────────── */
+  .section { padding-top: 28px; }
   .main {
-    padding: 32px 0 48px;
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 32px;
+    padding: 28px 0 0;
+    display: grid; grid-template-columns: 1fr 320px; gap: 28px;
   }
   .panel {
     background: var(--c-card);
@@ -98,6 +94,8 @@
     border-radius: 10px;
     overflow: hidden;
   }
+  .panel + .panel-stack { margin-top: 28px; }
+  .panel-stack { margin-top: 28px; }
   .panel-header {
     padding: 18px 22px 16px;
     border-bottom: 1px solid var(--c-border);
@@ -108,12 +106,37 @@
     letter-spacing: 2.5px; color: var(--c-muted);
     text-transform: uppercase; flex-shrink: 0;
   }
-  .panel-body { padding: 22px; }
-
-  /* ─── TRACK TABS ─────────────────────────────────────────────────── */
-  .track-tabs {
-    display: flex; gap: 6px; flex-wrap: wrap; flex: 1;
+  .panel-title .hl { color: var(--c-yellow); }
+  .panel-sub {
+    font-size: 12px; color: var(--c-faint);
+    font-family: var(--font-mono); margin-left: auto;
   }
+  .panel-body { padding: 22px; }
+  .panel-note {
+    font-size: 12px; color: var(--c-muted); line-height: 1.5;
+    margin-bottom: 16px; max-width: 760px;
+  }
+  .panel-note code {
+    background: #000; padding: 1px 5px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 11px; color: #cfcfcf;
+  }
+
+  /* ─── CONTROL DECK ───────────────────────────────────────────────── */
+  .control-deck { padding: 20px 22px; }
+  .deck-row {
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap;
+  }
+  .deck-row + .deck-row {
+    margin-top: 18px; padding-top: 18px;
+    border-top: 1px solid var(--c-border);
+  }
+  .deck-label {
+    font-family: var(--font-head); font-size: 11px;
+    letter-spacing: 2.5px; color: var(--c-muted);
+    text-transform: uppercase; width: 92px; flex-shrink: 0;
+  }
+  .track-tabs { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
   .tab {
     padding: 6px 12px; border-radius: 4px;
     font-family: var(--font-head); font-size: 12px;
@@ -126,11 +149,14 @@
     background: var(--c-yellow); color: #111;
     font-weight: 700; border-color: var(--c-yellow);
   }
-  .tab:not(.active):hover {
-    border-color: var(--c-border-hi); color: #ddd;
+  .tab.composite {
+    border-color: rgba(232,67,26,0.5); color: var(--c-accent);
   }
+  .tab.composite.active {
+    background: var(--c-accent); color: #fff; border-color: var(--c-accent);
+  }
+  .tab:not(.active):hover { border-color: var(--c-border-hi); color: #ddd; }
 
-  /* ─── MODE TOGGLE ────────────────────────────────────────────────── */
   .mode-toggle {
     display: flex; align-items: center; gap: 8px;
     font-size: 11px; color: var(--c-muted);
@@ -149,16 +175,45 @@
   }
   .mode-toggle .switch.on::after { transform: translateX(16px); background: #111; }
 
-  /* ─── CHART AREA ─────────────────────────────────────────────────── */
-  .chart-wrap {
-    position: relative; width: 100%; height: 420px;
-    margin-top: 8px;
+  .timeline-wrap { flex: 1; min-width: 260px; }
+  .timeline-head {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 8px;
+  }
+  .timeline-snap {
+    font-family: var(--font-head); font-size: 17px;
+    font-weight: 700; color: var(--c-yellow);
+  }
+  .timeline-slider {
+    width: 100%; height: 6px; background: var(--c-mid);
+    border-radius: 3px; appearance: none; outline: none; cursor: pointer;
+  }
+  .timeline-slider::-webkit-slider-thumb {
+    appearance: none; width: 18px; height: 18px;
+    background: var(--c-yellow); border-radius: 50%;
+    cursor: pointer; border: 3px solid #111;
+  }
+  .timeline-slider::-moz-range-thumb {
+    width: 18px; height: 18px;
+    background: var(--c-yellow); border-radius: 50%;
+    cursor: pointer; border: 3px solid #111;
+  }
+  .timeline-ends {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--c-faint);
+    font-family: var(--font-mono); margin-top: 6px;
+  }
+  .deck-hint {
+    font-size: 11px; color: var(--c-faint);
+    font-family: var(--font-mono); width: 100%;
   }
 
+  /* ─── CHART AREA ─────────────────────────────────────────────────── */
+  .chart-wrap { position: relative; width: 100%; height: 420px; margin-top: 8px; }
+  .chart-wrap.tall { height: 460px; }
+
   /* ─── SEARCH ─────────────────────────────────────────────────────── */
-  .search-box {
-    position: relative; margin-bottom: 14px;
-  }
+  .search-box { position: relative; margin-bottom: 14px; }
   .search-input {
     width: 100%; background: var(--c-mid);
     border: 1px solid var(--c-border); border-radius: 6px;
@@ -202,9 +257,7 @@
     letter-spacing: 0.5px; border: 1px solid;
     transition: opacity 0.15s;
   }
-  .pill-dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  }
+  .pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .pill-x {
     margin-left: 4px; cursor: pointer; opacity: 0.5;
     font-size: 13px; line-height: 1;
@@ -219,16 +272,14 @@
   .top-list::-webkit-scrollbar { width: 6px; }
   .top-list::-webkit-scrollbar-thumb { background: var(--c-mid); border-radius: 3px; }
   .top-item {
-    display: grid;
-    grid-template-columns: 28px 1fr auto;
+    display: grid; grid-template-columns: 28px 1fr auto;
     gap: 10px; align-items: center;
     padding: 9px 11px; background: var(--c-mid);
     border-radius: 6px; border: 1px solid transparent;
     transition: all 0.15s; cursor: pointer;
   }
   .top-item:hover {
-    border-color: rgba(245,200,66,0.3);
-    transform: translateX(2px);
+    border-color: rgba(245,200,66,0.3); transform: translateX(2px);
   }
   .top-rank {
     font-family: var(--font-head); font-size: 18px;
@@ -248,48 +299,140 @@
   }
   .top-score {
     font-family: var(--font-head); font-size: 17px;
-    font-weight: 700; color: var(--c-yellow); text-align: right;
-    line-height: 1;
+    font-weight: 700; color: var(--c-yellow); text-align: right; line-height: 1;
   }
   .top-score-sub {
     font-size: 10px; color: var(--c-faint);
-    text-align: right; margin-top: 2px;
-    font-family: var(--font-mono);
+    text-align: right; margin-top: 2px; font-family: var(--font-mono);
   }
 
-  /* ─── TIMELINE ───────────────────────────────────────────────────── */
-  .timeline-panel { margin-top: 24px; padding: 22px; }
-  .timeline-header {
-    display: flex; justify-content: space-between;
-    align-items: baseline; margin-bottom: 14px;
+  /* ─── HEAD TO HEAD ───────────────────────────────────────────────── */
+  .h2h-grid {
+    display: grid; grid-template-columns: 1fr 92px 1fr;
+    gap: 18px; align-items: stretch;
   }
-  .timeline-header > div:first-child {
+  .h2h-side { display: flex; flex-direction: column; gap: 10px; }
+  .h2h-pick {
+    width: 100%; background: var(--c-mid);
+    border: 1px solid var(--c-border); border-radius: 6px;
+    padding: 10px 12px; color: var(--c-text);
+    font-family: var(--font-body); font-size: 14px; outline: none;
+  }
+  .h2h-pick:focus { border-color: var(--c-yellow); }
+  .h2h-card {
+    background: var(--c-mid); border: 1px solid var(--c-border);
+    border-radius: 8px; padding: 16px; flex: 1;
+  }
+  .h2h-card.left  { border-left: 3px solid var(--c-yellow); }
+  .h2h-card.right { border-right: 3px solid var(--c-accent); }
+  .h2h-name {
+    font-family: var(--font-head); font-size: 20px;
+    font-weight: 700; margin-bottom: 4px;
+  }
+  .h2h-rating {
+    font-family: var(--font-head); font-size: 30px;
+    font-weight: 700; color: var(--c-yellow); line-height: 1;
+  }
+  .h2h-card.right .h2h-rating { color: var(--c-accent); }
+  .h2h-musig {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--c-faint); margin-top: 6px;
+  }
+  .h2h-prob-wrap {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+  }
+  .h2h-prob {
+    font-family: var(--font-head); font-size: 26px;
+    font-weight: 700; color: var(--c-text);
+  }
+  .h2h-vs {
+    font-family: var(--font-head); font-size: 12px;
+    color: var(--c-faint); letter-spacing: 2px;
+  }
+  .h2h-bar {
+    width: 100%; height: 10px; border-radius: 5px;
+    background: var(--c-accent); overflow: hidden;
+    margin-top: 16px; display: flex;
+  }
+  .h2h-bar > div:first-child {
+    background: var(--c-yellow); height: 100%;
+    transition: width 0.3s ease;
+  }
+  .h2h-barlabels {
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--c-muted); margin-top: 6px;
+  }
+  .h2h-empty {
+    color: var(--c-faint); font-family: var(--font-mono);
+    font-size: 12px; padding: 20px 0;
+  }
+
+  /* ─── REIGN BAR ──────────────────────────────────────────────────── */
+  .reign-title {
     font-family: var(--font-head); font-size: 11px;
-    letter-spacing: 2.5px; color: var(--c-muted); text-transform: uppercase;
+    letter-spacing: 2px; color: var(--c-muted);
+    text-transform: uppercase; margin: 24px 0 10px;
   }
-  .timeline-snap {
-    font-family: var(--font-head); font-size: 18px;
-    font-weight: 700; color: var(--c-yellow);
+  .reign-bar {
+    display: flex; width: 100%; height: 40px;
+    border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--c-border);
   }
-  .timeline-slider {
-    width: 100%; height: 6px; background: var(--c-mid);
-    border-radius: 3px; appearance: none; outline: none; cursor: pointer;
-    margin: 8px 0;
+  .reign-seg {
+    height: 100%; display: flex; align-items: center;
+    padding: 0 8px; overflow: hidden; white-space: nowrap;
+    font-family: var(--font-head); font-size: 12px;
+    font-weight: 600; color: #111; cursor: default;
+    border-right: 1px solid rgba(0,0,0,0.35);
   }
-  .timeline-slider::-webkit-slider-thumb {
-    appearance: none; width: 18px; height: 18px;
-    background: var(--c-yellow); border-radius: 50%;
-    cursor: pointer; border: 3px solid #111;
+  .reign-seg:last-child { border-right: none; }
+  .reign-legend {
+    display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px;
   }
-  .timeline-slider::-moz-range-thumb {
-    width: 18px; height: 18px;
-    background: var(--c-yellow); border-radius: 50%;
-    cursor: pointer; border: 3px solid #111;
+  .reign-leg-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--c-muted); font-family: var(--font-mono);
   }
-  .timeline-ends {
-    display: flex; justify-content: space-between;
-    font-size: 11px; color: var(--c-faint);
-    font-family: var(--font-mono); margin-top: 6px;
+  .reign-leg-dot { width: 9px; height: 9px; border-radius: 2px; }
+
+  /* ─── GOAT GRID ──────────────────────────────────────────────────── */
+  .goat-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .goat-card {
+    background: var(--c-mid); border: 1px solid var(--c-border);
+    border-radius: 8px; padding: 14px 14px 16px;
+    position: relative; overflow: hidden;
+  }
+  .goat-card .goat-rank {
+    font-family: var(--font-head); font-size: 40px;
+    font-weight: 700; line-height: 1; color: var(--c-faint);
+  }
+  .goat-card.r1 { border-color: rgba(245,200,66,0.55);
+                  background: linear-gradient(160deg, rgba(245,200,66,0.10), var(--c-mid) 60%); }
+  .goat-card.r2 { border-color: rgba(192,192,192,0.45);
+                  background: linear-gradient(160deg, rgba(192,192,192,0.09), var(--c-mid) 60%); }
+  .goat-card.r3 { border-color: rgba(205,127,50,0.45);
+                  background: linear-gradient(160deg, rgba(205,127,50,0.10), var(--c-mid) 60%); }
+  .goat-card.r1 .goat-rank { color: #F5C842; }
+  .goat-card.r2 .goat-rank { color: #C0C0C0; }
+  .goat-card.r3 .goat-rank { color: #CD7F32; }
+  .goat-name {
+    font-family: var(--font-head); font-size: 17px;
+    font-weight: 700; margin: 8px 0 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .goat-peak {
+    font-family: var(--font-head); font-size: 24px;
+    font-weight: 700; color: var(--c-yellow); line-height: 1.1;
+  }
+  .goat-card.r1 .goat-peak { color: #F5C842; }
+  .goat-meta {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--c-faint); margin-top: 6px;
   }
 
   /* ─── LOADING ────────────────────────────────────────────────────── */
@@ -321,7 +464,7 @@
   /* ─── FOOTER ─────────────────────────────────────────────────────── */
   footer {
     border-top: 1px solid var(--c-border);
-    padding: 24px 0 32px;
+    padding: 24px 0 32px; margin-top: 40px;
     font-size: 12px; color: var(--c-faint);
     font-family: var(--font-mono);
   }
@@ -337,12 +480,16 @@
     .hero-title { font-size: 48px; }
     .stats-bar { grid-template-columns: repeat(2, 1fr); }
     .stat { border-right: none; border-bottom: 1px solid var(--c-border); }
+    .goat-grid { grid-template-columns: repeat(3, 1fr); }
+    .h2h-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 600px) {
     .hero-title { font-size: 36px; }
     .hero { padding: 32px 0 24px; }
     .container { padding: 0 16px; }
     .panel-body { padding: 16px; }
+    .goat-grid { grid-template-columns: repeat(2, 1fr); }
+    .deck-label { width: 100%; }
   }
 </style>
 </head>
@@ -364,7 +511,8 @@
       <p class="hero-sub">
         Partial-pairing Bradley–Terry model with calendar-time σ inflation
         and race-importance τ scaling. Each rider has a (μ, σ) at every point
-        in time across 8 discipline tracks.
+        in time across 8 discipline tracks, plus a cross-discipline
+        cumulative score.
       </p>
 
       <div class="stats-bar">
@@ -377,19 +525,51 @@
     </div>
   </section>
 
-  <!-- MAIN ─────────────────────────────────────────────────────────── -->
   <section class="container">
-    <div class="main">
 
-      <!-- CHART -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Rider rating · over time</span>
+    <!-- CONTROL DECK ───────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="panel control-deck">
+        <div class="deck-row">
+          <div class="deck-label">Track</div>
           <div class="track-tabs" id="trackTabs"></div>
           <div class="mode-toggle">
             <span>μ−2σ safe</span>
             <div class="switch" id="modeSwitch"></div>
           </div>
+        </div>
+        <div class="deck-row">
+          <div class="deck-label">Timeline</div>
+          <div class="timeline-wrap">
+            <div class="timeline-head">
+              <span style="font-family:var(--font-mono);font-size:11px;color:var(--c-faint);">SNAPSHOT</span>
+              <span class="timeline-snap" id="snapLabel">—</span>
+            </div>
+            <input type="range" class="timeline-slider" id="timeSlider"
+                   min="0" max="100" value="100" step="1" />
+            <div class="timeline-ends">
+              <span id="timeStart">—</span>
+              <span id="timeEnd">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="deck-row">
+          <div class="deck-hint">
+            Track + safe toggle drive every panel. The timeline drives the
+            rating chart, the snapshot Top 10 and the head-to-head — but
+            <strong>not</strong> the all-time sections (those always span the
+            full period).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN: rating chart + snapshot top 10 ───────────────────────── -->
+    <div class="main">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Rider rating · <span class="hl" id="chartTrackLabel">All races</span></span>
+          <span class="panel-sub" id="chartMetricLabel">μ · normal</span>
         </div>
         <div class="panel-body">
           <div class="search-box">
@@ -403,29 +583,80 @@
         </div>
       </div>
 
-      <!-- TOP-N -->
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Top 10 at snapshot</span>
+          <span class="panel-title">Top 10 · <span class="hl">at snapshot</span></span>
         </div>
         <div class="panel-body">
           <div class="top-list" id="topList"></div>
         </div>
       </div>
-
     </div>
 
-    <!-- TIMELINE -->
-    <div class="panel timeline-panel">
-      <div class="timeline-header">
-        <div>Snapshot date</div>
-        <div class="timeline-snap" id="snapLabel">—</div>
+    <!-- HEAD TO HEAD ───────────────────────────────────────────────── -->
+    <div class="panel panel-stack">
+      <div class="panel-header">
+        <span class="panel-title">Head-to-head · <span class="hl" id="h2hTrackLabel">All races</span></span>
+        <span class="panel-sub" id="h2hSnapLabel">—</span>
       </div>
-      <input type="range" class="timeline-slider" id="timeSlider"
-             min="0" max="100" value="100" step="1" />
-      <div class="timeline-ends">
-        <span id="timeStart">—</span>
-        <span id="timeEnd">—</span>
+      <div class="panel-body">
+        <div class="panel-note">
+          Win probability uses the Thurstone–Mosteller (Bradley–Terry) link:
+          <code>P(A&nbsp;beats&nbsp;B) = Φ( (μA − μB) / √(2β² + σA² + σB²) )</code>.
+          σ already enters the denominator, so the probability is
+          independent of the safe/normal toggle — it reflects the model's
+          genuine uncertainty. β = <span id="betaVal">—</span>.
+          Evaluated live at the selected snapshot for any tracked rider.
+        </div>
+        <div class="h2h-grid">
+          <div class="h2h-side">
+            <input class="h2h-pick" id="h2hA" list="riderList"
+                   placeholder="Rider A…" autocomplete="off" />
+            <div class="h2h-card left" id="h2hCardA"></div>
+          </div>
+          <div class="h2h-prob-wrap">
+            <div class="h2h-vs">WIN&nbsp;PROB</div>
+            <div class="h2h-prob" id="h2hProb">—</div>
+          </div>
+          <div class="h2h-side">
+            <input class="h2h-pick" id="h2hB" list="riderList"
+                   placeholder="Rider B…" autocomplete="off" />
+            <div class="h2h-card right" id="h2hCardB"></div>
+          </div>
+        </div>
+        <div class="h2h-bar" id="h2hBar" style="display:none;">
+          <div id="h2hBarA"></div>
+        </div>
+        <div class="h2h-barlabels" id="h2hBarLabels" style="display:none;">
+          <span id="h2hLblA"></span><span id="h2hLblB"></span>
+        </div>
+        <datalist id="riderList"></datalist>
+      </div>
+    </div>
+
+    <!-- ALL-TIME #1 CLUB ───────────────────────────────────────────── -->
+    <div class="panel panel-stack">
+      <div class="panel-header">
+        <span class="panel-title">The #1 club · <span class="hl" id="clubTrackLabel">All races</span></span>
+        <span class="panel-sub">every rider who ever held #1 · full period</span>
+      </div>
+      <div class="panel-body">
+        <div class="panel-note" id="clubNote"></div>
+        <div class="chart-wrap tall" id="clubPlot"></div>
+        <div class="reign-title">Who wore the #1 jersey — and for how long</div>
+        <div class="reign-bar" id="reignBar"></div>
+        <div class="reign-legend" id="reignLegend"></div>
+      </div>
+    </div>
+
+    <!-- GOAT ───────────────────────────────────────────────────────── -->
+    <div class="panel panel-stack">
+      <div class="panel-header">
+        <span class="panel-title">Greatest of all time · <span class="hl" id="goatTrackLabel">All races</span></span>
+        <span class="panel-sub">highest peak ever recorded · full period</span>
+      </div>
+      <div class="panel-body">
+        <div class="goat-grid" id="goatGrid"></div>
       </div>
     </div>
 
@@ -456,25 +687,27 @@ const COLORS = ['#F5C842','#E8431A','#4AAFFF','#6DE89A',
                 '#D86CF5','#FF8C42','#FFFFFF','#FF5577'];
 
 const TRACK_LABELS = {
-  ALL: 'All races', composite: 'Composite',
+  ALL: 'All races', composite: 'Cumulative',
   sprint: 'Sprint', TT: 'Time trial', cobbles: 'Cobbles',
   punch: 'Punch', mountain: 'Mountain', GC: 'GC',
   stage_race: 'Stage race', classics: 'Classics',
 };
 
-// Display order for tabs
-const TRACK_ORDER = ['ALL','GC','stage_race','mountain','classics',
+const TRACK_ORDER = ['ALL','composite','GC','stage_race','mountain','classics',
                      'sprint','punch','cobbles','TT'];
 
 const state = {
   meta: null,
-  riderSeries: null,    // { rider: { ALL: [...], GC: [...], ... } }
-  topHistory: null,     // { ALL: [{date, race, top:[]}], ... }
-  currentTop: null,     // initial render (latest snapshot)
+  riderSeries: null,    // { rider: { ALL:[{d,m,s}], composite:[{d,v,vs}], ... } }
+  topHistory: null,     // { ALL:[{date,race,top:[],top_safe:[]}], ... }
+  hof: null,            // { ALL:{normal:{reigns,goat},safe:{...}}, ... }
   activeTrack: 'ALL',
   safeMode: false,
   selected: [],         // [{name, color}]
-  timeIdx: null,        // index into topHistory[activeTrack]
+  timeIdx: null,
+  // display params (from meta)
+  D_BASE: 1500, D_SCALE: 60, MU0: 25, BETA: 25/6,
+  riderColorMap: {},
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -482,13 +715,13 @@ const state = {
 // ════════════════════════════════════════════════════════════════════════════
 async function loadData() {
   const base = './outputs/';
-  const [meta, series, hist, current] = await Promise.all([
+  const [meta, series, hist, hof] = await Promise.all([
     fetch(base + 'meta.json').then(r => r.json()),
     fetch(base + 'rider_timeseries.json').then(r => r.json()),
-    fetch(base + 'top5_history.json').then(r => r.json()),
-    fetch(base + 'current_top5.json').then(r => r.json()),
+    fetch(base + 'top_history.json').then(r => r.json()),
+    fetch(base + 'hall_of_fame.json').then(r => r.json()),
   ]);
-  return { meta, series, hist, current };
+  return { meta, series, hist, hof };
 }
 
 function showError(msg, detail) {
@@ -507,8 +740,63 @@ function showError(msg, detail) {
           <code style="background:#000;padding:2px 6px;border-radius:3px;">docs/outputs/*.json</code>.
         </div>
       </div>
-    </div>
-  `;
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Helpers
+// ════════════════════════════════════════════════════════════════════════════
+const isComposite = () => state.activeTrack === 'composite';
+const metricKey   = () => state.safeMode ? 'safe' : 'normal';
+
+function elo(m, s, z) {
+  return state.D_BASE + state.D_SCALE * ((m - z * s) - state.MU0);
+}
+
+// value plotted / ranked for a timeseries point, respecting track + safe
+function pointValue(p, track) {
+  if (track === 'composite') return state.safeMode ? p.vs : p.v;
+  return elo(p.m, p.s, state.safeMode ? 2 : 0);
+}
+
+function formatDate(s) {
+  return new Date(s).toLocaleDateString('en-GB',
+    { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// stable color for any rider (used by the #1-club plot / reign bar)
+function colorFor(name) {
+  if (state.riderColorMap[name]) return state.riderColorMap[name];
+  const idx = Object.keys(state.riderColorMap).length;
+  let c;
+  if (idx < COLORS.length) c = COLORS[idx];
+  else {
+    const h = (idx * 47) % 360;
+    c = `hsl(${h} 70% 60%)`;
+  }
+  state.riderColorMap[name] = c;
+  return c;
+}
+
+// P(win) = 0.5·(1 + erf(z/√2)); erf via Abramowitz & Stegun 7.1.26
+function erf(x) {
+  const s = x < 0 ? -1 : 1; x = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * x);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t
+            - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return s * y;
+}
+function phi(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+
+// rider's (m,s) for a track as of a given snapshot date (carry-forward)
+function ratingAsOf(rider, track, dateStr) {
+  const series = state.riderSeries[rider]?.[track];
+  if (!series || !series.length) return null;
+  let chosen = null;
+  for (const p of series) {
+    if (p.d <= dateStr) chosen = p; else break;
+  }
+  return chosen || series[0];
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -531,6 +819,7 @@ function renderHero() {
 
   document.getElementById('heroEyebrow').textContent =
     `World Tour · ${fmt(first)} – ${fmt(last)}`;
+  document.getElementById('betaVal').textContent = state.BETA.toFixed(3);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -539,28 +828,27 @@ function renderHero() {
 function renderTabs() {
   const container = document.getElementById('trackTabs');
   const available = TRACK_ORDER.filter(t => t in state.topHistory);
-  container.innerHTML = available.map(t => `
-    <div class="tab ${t === state.activeTrack ? 'active' : ''}"
-         data-track="${t}">${TRACK_LABELS[t] || t}</div>
-  `).join('');
+  container.innerHTML = available.map(t => {
+    const cls = ['tab'];
+    if (t === 'composite') cls.push('composite');
+    if (t === state.activeTrack) cls.push('active');
+    return `<div class="${cls.join(' ')}" data-track="${t}">${TRACK_LABELS[t] || t}</div>`;
+  }).join('');
   container.querySelectorAll('.tab').forEach(el => {
     el.addEventListener('click', () => {
       state.activeTrack = el.dataset.track;
       state.timeIdx = state.topHistory[state.activeTrack].length - 1;
       renderTabs();
       renderTimelineBounds();
-      renderTopList();
-      updatePlot();
+      renderAll();
     });
   });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Search & pills
+// Search & pills (rating chart)
 // ════════════════════════════════════════════════════════════════════════════
-function getAllRiders() {
-  return Object.keys(state.riderSeries).sort();
-}
+function getAllRiders() { return Object.keys(state.riderSeries).sort(); }
 
 function setupSearch() {
   const input  = document.getElementById('riderInput');
@@ -576,24 +864,19 @@ function setupSearch() {
                 && !state.selected.find(s => s.name === r))
       .slice(0, 8);
   }
-
   function renderAC(matches) {
     if (!matches.length) { acBox.classList.remove('open'); return; }
-    acBox.innerHTML = matches.map((r, i) => {
-      const trackName = state.activeTrack === 'composite' ? 'ALL' : state.activeTrack;
-      const series = state.riderSeries[r][trackName] || state.riderSeries[r]['ALL'];
-      const rideCount = series ? series.filter(p => p.rode).length : 0;
+    acBox.innerHTML = matches.map(r => {
+      const tk = isComposite() ? 'composite' : state.activeTrack;
+      const series = state.riderSeries[r][tk] || state.riderSeries[r]['ALL'];
+      const n = series ? series.length : 0;
       return `<div class="ac-item" data-name="${r}">
-                ${r}<span class="race-count">${rideCount} races</span>
-              </div>`;
+                ${r}<span class="race-count">${n} pts</span></div>`;
     }).join('');
     acBox.classList.add('open');
     focusedIdx = -1;
   }
-
-  input.addEventListener('input', () => {
-    renderAC(filterRiders(input.value.trim()));
-  });
+  input.addEventListener('input', () => renderAC(filterRiders(input.value.trim())));
   input.addEventListener('focus', () => {
     if (input.value.trim()) renderAC(filterRiders(input.value.trim()));
   });
@@ -627,8 +910,8 @@ function setupSearch() {
 function addRider(name) {
   if (state.selected.find(s => s.name === name)) return;
   if (state.selected.length >= 8) return;
-  const usedColors = new Set(state.selected.map(s => s.color));
-  const color = COLORS.find(c => !usedColors.has(c)) || COLORS[0];
+  const used = new Set(state.selected.map(s => s.color));
+  const color = COLORS.find(c => !used.has(c)) || COLORS[0];
   state.selected.push({ name, color });
   document.getElementById('riderInput').value = '';
   document.getElementById('acBox').classList.remove('open');
@@ -644,161 +927,173 @@ function removeRider(name) {
 window.removeRider = removeRider;
 
 function renderPills() {
-  const html = state.selected.map(s => `
+  document.getElementById('pills').innerHTML = state.selected.map(s => `
     <span class="pill" style="border-color:${s.color}55; background:${s.color}14; color:${s.color};">
       <span class="pill-dot" style="background:${s.color};"></span>
       ${s.name}
       <span class="pill-x" onclick="removeRider('${s.name.replace(/'/g, "\\'")}')">×</span>
     </span>`).join('');
-  document.getElementById('pills').innerHTML = html;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Plot
+// Plotly — shared layout + linear interpolation everywhere
 // ════════════════════════════════════════════════════════════════════════════
-function getRiderSeries(rider, track) {
-  // composite has no per-rider series — fall back to ALL
-  const t = track === 'composite' ? 'ALL' : track;
-  return state.riderSeries[rider]?.[t] || null;
+function baseLayout(yTitle) {
+  return {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor:  'rgba(0,0,0,0)',
+    margin: { t: 18, b: 50, l: 60, r: 16 },
+    font:   { family: 'Barlow, sans-serif', color: '#888', size: 12 },
+    xaxis: {
+      showgrid: false, zeroline: false,
+      tickfont: { size: 11, color: '#777' },
+      linecolor: 'rgba(255,255,255,0.1)', tickcolor: 'rgba(255,255,255,0.1)',
+    },
+    yaxis: {
+      showgrid: true, gridcolor: 'rgba(255,255,255,0.05)', zeroline: false,
+      tickfont: { size: 11, color: '#777' },
+      title: { text: yTitle, font: { size: 11, color: '#888' }, standoff: 14 },
+    },
+    legend: {
+      orientation: 'h', x: 0, y: -0.18,
+      font: { size: 12, color: '#bbb' }, bgcolor: 'rgba(0,0,0,0)',
+    },
+    hovermode: 'x unified',
+    hoverlabel: {
+      bgcolor: '#1a1a1a', bordercolor: 'rgba(255,255,255,0.12)',
+      font: { color: '#f0f0f0', family: 'Barlow', size: 13 },
+    },
+  };
+}
+const PLOT_CONFIG = { responsive: true, displayModeBar: false };
+
+function yAxisTitle() {
+  return isComposite()
+    ? 'Composite z-score (cross-discipline)'
+    : 'Rating (ELO-like, base 1500)';
 }
 
-function buildPlotData() {
-  const traces = [];
-  const trackKey = state.activeTrack;
-  const valKey = state.safeMode ? 'low' : 'elo';
+function traceFor(name, color, withMarkers) {
+  const tk = isComposite() ? 'composite' : state.activeTrack;
+  const series = state.riderSeries[name]?.[tk];
+  if (!series || !series.length) return null;
+  return {
+    x: series.map(p => p.d),
+    y: series.map(p => pointValue(p, tk)),
+    name,
+    type: 'scatter',
+    mode: withMarkers ? 'lines+markers' : 'lines',
+    line: { color, width: 2.4, shape: 'linear' },     // linear, no spline
+    marker: { size: 4, color },
+    hovertemplate: isComposite()
+      ? '<b>%{fullData.name}</b><br>%{x}<br>z: <b>%{y:.3f}</b><extra></extra>'
+      : '<b>%{fullData.name}</b><br>%{x}<br>Rating: <b>%{y:,.0f}</b><extra></extra>',
+  };
+}
 
+let mainInit = false;
+function updatePlot() {
+  document.getElementById('chartTrackLabel').textContent =
+    TRACK_LABELS[state.activeTrack] || state.activeTrack;
+  document.getElementById('chartMetricLabel').textContent =
+    isComposite()
+      ? (state.safeMode ? 'composite · safe' : 'composite · normal')
+      : (state.safeMode ? 'μ−2σ · safe' : 'μ · normal');
+
+  const data = [];
   state.selected.forEach(s => {
-    const series = getRiderSeries(s.name, trackKey);
-    if (!series || !series.length) return;
-
-    const x = series.map(p => p.d);
-    const y = series.map(p => p[valKey]);
-
-    traces.push({
-      x, y,
-      name: s.name,
-      type: 'scatter',
-      mode: 'lines+markers',
-      line: { color: s.color, width: 2.5, shape: 'spline', smoothing: 0.6 },
-      marker: { size: 4, color: s.color },
-      hovertemplate: '<b>%{fullData.name}</b><br>%{x}<br>Rating: <b>%{y:,.0f}</b><extra></extra>',
-    });
+    const tr = traceFor(s.name, s.color, true);
+    if (tr) data.push(tr);
   });
 
-  return traces;
-}
-
-const PLOT_LAYOUT = {
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  plot_bgcolor:  'rgba(0,0,0,0)',
-  margin: { t: 18, b: 50, l: 60, r: 16 },
-  font:   { family: 'Barlow, sans-serif', color: '#888', size: 12 },
-  xaxis: {
-    showgrid: false, zeroline: false,
-    tickfont: { size: 11, color: '#777' },
-    linecolor: 'rgba(255,255,255,0.1)', tickcolor: 'rgba(255,255,255,0.1)',
-  },
-  yaxis: {
-    showgrid: true, gridcolor: 'rgba(255,255,255,0.05)', zeroline: false,
-    tickfont: { size: 11, color: '#777' },
-    title: { text: 'Rating (ELO-like, base 1500)',
-             font: { size: 11, color: '#888' }, standoff: 14 },
-  },
-  legend: {
-    orientation: 'h', x: 0, y: -0.18,
-    font: { size: 12, color: '#bbb' }, bgcolor: 'rgba(0,0,0,0)',
-  },
-  hovermode: 'x unified',
-  hoverlabel: {
-    bgcolor: '#1a1a1a', bordercolor: 'rgba(255,255,255,0.12)',
-    font: { color: '#f0f0f0', family: 'Barlow', size: 13 },
-  },
-  shapes: [{
-    type: 'line', xref: 'paper', x0: 0, x1: 1,
-    yref: 'y', y0: 1500, y1: 1500,
-    line: { color: 'rgba(255,255,255,0.15)', width: 1, dash: 'dot' },
-  }],
-};
-
-let plotInitialized = false;
-function updatePlot() {
-  const data = buildPlotData();
-  const config = { responsive: true, displayModeBar: false };
-  // re-vertical-line for current snapshot
   const snap = state.topHistory[state.activeTrack][state.timeIdx];
-  const layout = { ...PLOT_LAYOUT, shapes: [
-    { type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 1500, y1: 1500,
-      line: { color: 'rgba(255,255,255,0.15)', width: 1, dash: 'dot' }},
-    { type: 'line', xref: 'x', x0: snap.date, x1: snap.date,
-      yref: 'paper', y0: 0, y1: 1,
-      line: { color: '#F5C842', width: 1, dash: 'dash' }, opacity: 0.4 },
-  ]};
-  if (!plotInitialized) {
-    Plotly.newPlot('plotDiv', data, layout, config);
-    plotInitialized = true;
+  const layout = baseLayout(yAxisTitle());
+  layout.shapes = [];
+  if (!isComposite()) {
+    layout.shapes.push({
+      type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y',
+      y0: state.D_BASE, y1: state.D_BASE,
+      line: { color: 'rgba(255,255,255,0.15)', width: 1, dash: 'dot' },
+    });
   } else {
-    Plotly.react('plotDiv', data, layout, config);
+    layout.shapes.push({
+      type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 0, y1: 0,
+      line: { color: 'rgba(255,255,255,0.15)', width: 1, dash: 'dot' },
+    });
   }
+  if (snap) layout.shapes.push({
+    type: 'line', xref: 'x', x0: snap.date, x1: snap.date,
+    yref: 'paper', y0: 0, y1: 1,
+    line: { color: '#F5C842', width: 1, dash: 'dash' }, opacity: 0.4,
+  });
+
+  if (!mainInit) { Plotly.newPlot('plotDiv', data, layout, PLOT_CONFIG); mainInit = true; }
+  else            { Plotly.react('plotDiv', data, layout, PLOT_CONFIG); }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Top-N list
+// Snapshot Top 10  (track + safe + slider)
 // ════════════════════════════════════════════════════════════════════════════
 function renderTopList() {
   const hist = state.topHistory[state.activeTrack];
+  const el = document.getElementById('topList');
   if (!hist || !hist.length) {
-    document.getElementById('topList').innerHTML =
-      `<div style="padding:20px;color:#666;font-family:var(--font-mono);font-size:12px;">No data for this track.</div>`;
+    el.innerHTML = `<div style="padding:20px;color:#666;font-family:var(--font-mono);font-size:12px;">No data for this track.</div>`;
     return;
   }
   const snap = hist[state.timeIdx];
+  const rows = (state.safeMode ? snap.top_safe : snap.top) || [];
   const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' :
-                          i === 2 ? 'bronze' : 'other';
-  document.getElementById('topList').innerHTML = snap.top.map((r, i) => `
-    <div class="top-item" data-rider="${r.name.replace(/"/g, '&quot;')}">
+                         i === 2 ? 'bronze' : 'other';
+  if (!rows.length) {
+    el.innerHTML = `<div style="padding:20px;color:#666;font-family:var(--font-mono);font-size:12px;">No qualifying riders yet at this snapshot.</div>`;
+    return;
+  }
+  el.innerHTML = rows.map((r, i) => {
+    const isC = isComposite();
+    const score = isC ? r.val.toFixed(2)
+                       : Math.round(state.safeMode ? r.low : r.elo).toLocaleString();
+    const sub = isC ? `${r.races} races`
+                     : (state.safeMode ? `μ ${Math.round(r.elo)}`
+                                       : `low ${Math.round(r.low)}`);
+    return `<div class="top-item" data-rider="${r.name.replace(/"/g,'&quot;')}">
       <div class="top-rank ${rankClass(i)}">${i + 1}</div>
       <div>
         <div class="top-name">${r.name}</div>
-        <div class="top-meta">${r.races} races</div>
+        <div class="top-meta">${isC ? 'composite' : r.races + ' races'}</div>
       </div>
       <div>
-        <div class="top-score">${Math.round(r.elo).toLocaleString()}</div>
-        <div class="top-score-sub">low ${Math.round(r.low)}</div>
+        <div class="top-score">${score}</div>
+        <div class="top-score-sub">${sub}</div>
       </div>
-    </div>
-  `).join('');
-  document.querySelectorAll('.top-item').forEach(el => {
-    el.addEventListener('click', () => addRider(el.dataset.rider));
-  });
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.top-item').forEach(d =>
+    d.addEventListener('click', () => addRider(d.dataset.rider)));
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Timeline
+// Timeline (track + safe + slider — drives chart, top10, head-to-head)
 // ════════════════════════════════════════════════════════════════════════════
 function renderTimelineBounds() {
   const hist = state.topHistory[state.activeTrack];
   const slider = document.getElementById('timeSlider');
   slider.min = 0;
-  slider.max = hist.length - 1;
+  slider.max = Math.max(hist.length - 1, 0);
   slider.value = state.timeIdx;
   updateSnapLabel();
-  document.getElementById('timeStart').textContent =
-    formatDate(hist[0].date);
+  document.getElementById('timeStart').textContent = formatDate(hist[0].date);
   document.getElementById('timeEnd').textContent =
     formatDate(hist[hist.length - 1].date);
 }
-
-function formatDate(s) {
-  return new Date(s).toLocaleDateString('en-GB',
-    { day: '2-digit', month: 'short', year: 'numeric' });
+function currentSnap() {
+  return state.topHistory[state.activeTrack][state.timeIdx];
 }
-
 function updateSnapLabel() {
-  const snap = state.topHistory[state.activeTrack][state.timeIdx];
+  const snap = currentSnap();
   document.getElementById('snapLabel').textContent =
     `${formatDate(snap.date)} · ${snap.race}`;
 }
-
 function setupTimeline() {
   const slider = document.getElementById('timeSlider');
   slider.addEventListener('input', () => {
@@ -806,19 +1101,222 @@ function setupTimeline() {
     updateSnapLabel();
     renderTopList();
     updatePlot();
+    renderHeadToHead();   // slider affects H2H
   });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Mode toggle
+// Safe toggle (affects everything)
 // ════════════════════════════════════════════════════════════════════════════
 function setupModeToggle() {
   const sw = document.getElementById('modeSwitch');
   sw.addEventListener('click', () => {
     state.safeMode = !state.safeMode;
     sw.classList.toggle('on', state.safeMode);
-    updatePlot();
+    renderAll();
   });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Head-to-head (online — track + safe + slider)
+// ════════════════════════════════════════════════════════════════════════════
+function setupHeadToHead() {
+  const dl = document.getElementById('riderList');
+  dl.innerHTML = getAllRiders().map(r => `<option value="${r}">`).join('');
+  ['h2hA', 'h2hB'].forEach(id =>
+    document.getElementById(id).addEventListener('change', renderHeadToHead));
+  // sensible defaults
+  const pref = ['Pogačar Tadej', 'Vingegaard Jonas', 'Evenepoel Remco',
+                'van der Poel Mathieu'].filter(n => state.riderSeries[n]);
+  const all = getAllRiders();
+  document.getElementById('h2hA').value = pref[0] || all[0] || '';
+  document.getElementById('h2hB').value = pref[1] || all[1] || '';
+}
+
+function renderHeadToHead() {
+  const track = state.activeTrack;
+  const snap = currentSnap();
+  document.getElementById('h2hTrackLabel').textContent =
+    TRACK_LABELS[track] || track;
+  document.getElementById('h2hSnapLabel').textContent =
+    `snapshot · ${formatDate(snap.date)}`;
+
+  const cardA = document.getElementById('h2hCardA');
+  const cardB = document.getElementById('h2hCardB');
+  const probEl = document.getElementById('h2hProb');
+  const bar = document.getElementById('h2hBar');
+  const lbls = document.getElementById('h2hBarLabels');
+
+  if (isComposite()) {
+    cardA.innerHTML = cardB.innerHTML =
+      `<div class="h2h-empty">The cumulative score has no σ, so a
+       Bradley–Terry win probability isn't defined here. Pick a
+       discipline track for head-to-head.</div>`;
+    probEl.textContent = '—';
+    bar.style.display = lbls.style.display = 'none';
+    return;
+  }
+
+  const nameA = document.getElementById('h2hA').value.trim();
+  const nameB = document.getElementById('h2hB').value.trim();
+  const rA = nameA ? ratingAsOf(nameA, track, snap.date) : null;
+  const rB = nameB ? ratingAsOf(nameB, track, snap.date) : null;
+
+  function card(name, r, side) {
+    if (!name) return `<div class="h2h-empty">Pick a rider.</div>`;
+    if (!r) return `<div class="h2h-empty">${name} has no result in
+                    “${TRACK_LABELS[track]}” by this snapshot.</div>`;
+    const z = state.safeMode ? 2 : 0;
+    return `<div class="h2h-name">${name}</div>
+      <div class="h2h-rating">${Math.round(elo(r.m, r.s, z)).toLocaleString()}</div>
+      <div class="h2h-musig">μ ${r.m.toFixed(2)} · σ ${r.s.toFixed(2)} ·
+        ${side} · as of ${formatDate(r.d)}</div>`;
+  }
+  cardA.innerHTML = card(nameA, rA, 'A');
+  cardB.innerHTML = card(nameB, rB, 'B');
+
+  if (!rA || !rB || nameA === nameB) {
+    probEl.textContent = '—';
+    bar.style.display = lbls.style.display = 'none';
+    return;
+  }
+  // BT formula: always raw μ — σ already enters the denominator
+  const denom = Math.sqrt(2 * state.BETA * state.BETA
+                          + rA.s * rA.s + rB.s * rB.s);
+  const pA = phi((rA.m - rB.m) / denom);
+  const pct = Math.round(pA * 1000) / 10;
+
+  probEl.innerHTML =
+    `<span style="color:var(--c-yellow)">${pct}%</span>` +
+    ` <span style="color:var(--c-faint);font-size:14px">vs</span> ` +
+    `<span style="color:var(--c-accent)">${(100 - pct).toFixed(1)}%</span>`;
+  bar.style.display = 'flex';
+  lbls.style.display = 'flex';
+  document.getElementById('h2hBarA').style.width = pct + '%';
+  document.getElementById('h2hLblA').textContent = `${nameA} ${pct}%`;
+  document.getElementById('h2hLblB').textContent =
+    `${(100 - pct).toFixed(1)}% ${nameB}`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// The #1 club  (track + safe — NOT slider)
+// ════════════════════════════════════════════════════════════════════════════
+let clubInit = false;
+function renderClub() {
+  const track = state.activeTrack;
+  const hof = state.hof[track]?.[metricKey()];
+  document.getElementById('clubTrackLabel').textContent =
+    TRACK_LABELS[track] || track;
+
+  const reigns = (hof && hof.reigns) ? hof.reigns : [];
+  const names = [];
+  reigns.forEach(r => { if (!names.includes(r.name)) names.push(r.name); });
+
+  document.getElementById('clubNote').innerHTML = names.length
+    ? `${names.length} rider${names.length > 1 ? 's' : ''} held the #1 spot in
+       <strong>${TRACK_LABELS[track]}</strong> under the
+       ${state.safeMode ? 'safe (μ−2σ)' : 'normal (μ)'} metric over the full
+       period. Lines below are full carried-forward trajectories.`
+    : `No #1 history for this track/metric.`;
+
+  const tk = track === 'composite' ? 'composite' : track;
+  const data = names.map(n => {
+    const series = state.riderSeries[n]?.[tk];
+    if (!series || !series.length) return null;
+    return {
+      x: series.map(p => p.d),
+      y: series.map(p => pointValue(p, tk)),
+      name: n, type: 'scatter', mode: 'lines',
+      line: { color: colorFor(n), width: 2, shape: 'linear' },
+      hovertemplate: track === 'composite'
+        ? '<b>%{fullData.name}</b><br>%{x}<br>z: <b>%{y:.3f}</b><extra></extra>'
+        : '<b>%{fullData.name}</b><br>%{x}<br>Rating: <b>%{y:,.0f}</b><extra></extra>',
+    };
+  }).filter(Boolean);
+
+  const layout = baseLayout(yAxisTitle());
+  layout.autosize = true;
+  layout.shapes = [{
+    type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y',
+    y0: track === 'composite' ? 0 : state.D_BASE,
+    y1: track === 'composite' ? 0 : state.D_BASE,
+    line: { color: 'rgba(255,255,255,0.15)', width: 1, dash: 'dot' },
+  }];
+  if (!clubInit) { Plotly.newPlot('clubPlot', data, layout, PLOT_CONFIG); clubInit = true; }
+  else            { Plotly.react('clubPlot', data, layout, PLOT_CONFIG); }
+  Plotly.Plots.resize('clubPlot');
+
+  renderReignBar(reigns);
+}
+
+function renderReignBar(reigns) {
+  const barEl = document.getElementById('reignBar');
+  const legEl = document.getElementById('reignLegend');
+  if (!reigns.length) {
+    barEl.innerHTML =
+      `<div style="padding:10px;color:#666;font-family:var(--font-mono);font-size:12px;">No reigns.</div>`;
+    legEl.innerHTML = '';
+    return;
+  }
+  const total = reigns.reduce((a, r) => a + Math.max(r.days, 1), 0);
+  barEl.innerHTML = reigns.map(r => {
+    const w = Math.max(r.days, 1) / total * 100;
+    const c = colorFor(r.name);
+    const title = `${r.name} · ${formatDate(r.start)} → ${formatDate(r.end)} · ${r.days} d`;
+    const label = w > 6 ? r.name : '';
+    return `<div class="reign-seg" style="width:${w}%;background:${c};" title="${title}">${label}</div>`;
+  }).join('');
+
+  const seen = [];
+  reigns.forEach(r => { if (!seen.includes(r.name)) seen.push(r.name); });
+  legEl.innerHTML = seen.map(n => {
+    const tot = reigns.filter(r => r.name === n)
+                      .reduce((a, r) => a + r.days, 0);
+    return `<span class="reign-leg-item">
+      <span class="reign-leg-dot" style="background:${colorFor(n)};"></span>
+      ${n} · ${tot} d</span>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// GOAT  (track + safe — NOT slider)
+// ════════════════════════════════════════════════════════════════════════════
+function renderGoat() {
+  const track = state.activeTrack;
+  const hof = state.hof[track]?.[metricKey()];
+  document.getElementById('goatTrackLabel').textContent =
+    TRACK_LABELS[track] || track;
+  const grid = document.getElementById('goatGrid');
+  const goat = (hof && hof.goat) ? hof.goat : [];
+  if (!goat.length) {
+    grid.innerHTML =
+      `<div style="grid-column:1/-1;padding:20px;color:#666;font-family:var(--font-mono);font-size:12px;">No data for this track/metric.</div>`;
+    return;
+  }
+  const isC = track === 'composite';
+  grid.innerHTML = goat.slice(0, 10).map((g, i) => {
+    const rk = i + 1;
+    const cls = rk === 1 ? 'r1' : rk === 2 ? 'r2' : rk === 3 ? 'r3' : '';
+    const peak = isC ? g.peak.toFixed(2)
+                      : Math.round(g.peak).toLocaleString();
+    return `<div class="goat-card ${cls}">
+      <div class="goat-rank">${rk}</div>
+      <div class="goat-name">${g.name}</div>
+      <div class="goat-peak">${peak}</div>
+      <div class="goat-meta">peak ${formatDate(g.date)}<br>${g.races} races</div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Orchestration
+// ════════════════════════════════════════════════════════════════════════════
+function renderAll() {
+  updatePlot();
+  renderTopList();
+  renderHeadToHead();
+  renderClub();
+  renderGoat();
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -826,20 +1324,27 @@ function setupModeToggle() {
 // ════════════════════════════════════════════════════════════════════════════
 async function init() {
   let data;
-  try {
-    data = await loadData();
-  } catch (err) {
+  try { data = await loadData(); }
+  catch (err) {
     showError('Failed to fetch the rankings JSON files.',
               err && err.message ? err.message : '');
     console.error(err);
     return;
   }
 
-  state.meta         = data.meta;
-  state.riderSeries  = data.series;
-  state.topHistory   = data.hist;
-  state.currentTop   = data.current;
-  state.timeIdx      = state.topHistory['ALL'].length - 1;
+  state.meta        = data.meta;
+  state.riderSeries = data.series;
+  state.topHistory  = data.hist;
+  state.hof         = data.hof;
+
+  const p = data.meta.params || {};
+  state.D_BASE  = p.display_base  ?? 1500;
+  state.D_SCALE = p.display_scale ?? 60;
+  state.MU0     = p.mu_init       ?? 25;
+  state.BETA    = p.beta          ?? (25 / 6);
+
+  state.activeTrack = 'ALL';
+  state.timeIdx     = state.topHistory['ALL'].length - 1;
 
   renderHero();
   renderTabs();
@@ -847,20 +1352,16 @@ async function init() {
   setupSearch();
   setupTimeline();
   setupModeToggle();
+  setupHeadToHead();
 
-  // Pre-select a few notable riders if they exist
   const defaults = ['Pogačar Tadej', 'Vingegaard Jonas',
                     'Evenepoel Remco', 'van der Poel Mathieu'];
   defaults.forEach(name => {
-    if (state.riderSeries[name]) {
-      state.selected.push({
-        name, color: COLORS[state.selected.length]
-      });
-    }
+    if (state.riderSeries[name])
+      state.selected.push({ name, color: COLORS[state.selected.length] });
   });
   renderPills();
-  renderTopList();
-  updatePlot();
+  renderAll();
 
   document.getElementById('loader').style.display = 'none';
   document.getElementById('app').style.display = 'block';

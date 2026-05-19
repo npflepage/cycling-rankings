@@ -4,28 +4,36 @@ Time-Aware Bradley-Terry export for the static GitHub Pages site.
 Runs the same engine as `Cycling_BT_TimeAware.ipynb` and writes 4 JSON files
 under ../docs/outputs/ that the landing page consumes:
 
-  - meta.json                 stats bar, last update, race count, tracks
-  - rider_timeseries.json     full per-rider μ/σ trajectory (all engines)
-  - top5_by_track.json        current top-N per track + composite
-  - top5_history.json         top-5 leaderboard at each snapshot (for scrubber)
+  - meta.json               stats bar, last update, race count, tracks, params
+  - rider_timeseries.json   per-rider (mu, sigma) trajectory (all engines)
+                            + per-rider composite z-score trajectory
+  - top_history.json        top-N per track at each snapshot (normal + safe)
+  - hall_of_fame.json       per track: #1 reigns + all-time peak (GOAT),
+                            for both the normal (mu) and safe (mu-2sigma)
+                            metric. Not affected by the timeline slider.
+
+Design note — what is precomputed vs. computed in the browser:
+
+  * Everything that depends only on (track, safe-metric) and is expensive
+    to recompute (per-snapshot rankings, #1 reigns, all-time peaks, the
+    cross-discipline composite) is baked here into static JSON.
+  * The timeseries stores raw (mu, sigma) instead of display ELO so the
+    page can (a) redraw instantly when the "safe" toggle flips and
+    (b) run the head-to-head win-probability calculator *online* for any
+    pair of riders without us having to precompute the O(n^2) matrix.
 
 Usage:
   pip install openskill numpy
   python model/export_for_web.py --data-dir ./data --out-dir ./docs/outputs
-
-The JSON files are small enough that the browser fetches them on load
-(~ few hundred KB depending on rider count).
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 
@@ -147,8 +155,17 @@ BT_TRACKS = {
     "classics":   lambda r: r["category"] == "classic",
 }
 
-COMPOSITE_TRACKS = ["sprint", "punch", "cobbles", "classics",
-                    "mountain", "stage_race", "TT"]
+# ── Composite ("Cumulative") track ──────────────────────────────────────────
+# The 8 BT tracks overlap (e.g. `classics` ⊃ `punch`, `stage_race` ⊃ `GC`).
+# To build a single cross-discipline score we keep only the disjoint *type*
+# tracks the user asked for and drop the category aggregates that would
+# double-count.  GC is up-weighted: holding form across a 3-week tour is a
+# stronger signal of all-round quality than picking up isolated stage wins.
+COMPOSITE_TRACKS  = ["cobbles", "punch", "mountain", "sprint", "GC"]
+COMPOSITE_WEIGHTS = {
+    "cobbles": 1.0, "punch": 1.0, "mountain": 1.0, "sprint": 1.0,
+    "GC": 1.75,
+}
 
 
 class BTEngineMultiTrack:
@@ -160,6 +177,100 @@ class BTEngineMultiTrack:
         for track, condition in BT_TRACKS.items():
             if condition(race):
                 self.engines[track].process_race(race)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Composite trajectory — cross-discipline z-score over time
+# ════════════════════════════════════════════════════════════════════════════
+def compute_composite_history(engine_mt, tracks=COMPOSITE_TRACKS,
+                              weights=COMPOSITE_WEIGHTS,
+                              safe=False, min_races=2):
+    """Reconstruct the composite score for every rider at each point on a
+    unified timeline (the union of all per-track snapshots, ordered by date).
+
+    Recipe at every global snapshot:
+      - effective skill r = mu - z*sigma   (z = 2 in safe mode, else 0)
+      - z-score r against that track's *current* field of qualifiers
+      - weight by (1/sigma) * track_weight  (GC weighted up)
+      - average the weighted z-scores over the tracks the rider qualifies in
+
+    Returns a date-ordered list of events:
+      {idx, date, race_name, track, raced:set, qual_races:{r:int},
+       composites:{rider: value}}
+    """
+    z = 2.0 if safe else 0.0
+
+    events = []
+    for track in tracks:
+        eng = engine_mt.engines[track]
+        for i, snap in enumerate(eng.history):
+            events.append((snap["date"], track, i))
+    events.sort(key=lambda e: e[0])
+
+    cur_ratings   = {t: {} for t in tracks}   # {track: {rider: (mu, sigma)}}
+    cur_racecount = {t: {} for t in tracks}   # {track: {rider: int}}
+    history = []
+
+    for global_idx, (date, track, snap_i) in enumerate(events):
+        eng  = engine_mt.engines[track]
+        snap = eng.history[snap_i]
+        raced_here = set(snap["deltas"].keys())
+
+        for rider in snap["deltas"]:
+            cur_racecount[track][rider] = cur_racecount[track].get(rider, 0) + 1
+        for rider, (mu, sigma) in snap["ratings"].items():
+            cur_ratings[track][rider] = (mu, sigma)
+
+        # ── per-track field stats on the effective (safe-aware) skill ──
+        track_stats = {}
+        for t in tracks:
+            effs = [mu - z * sg
+                    for r, (mu, sg) in cur_ratings[t].items()
+                    if cur_racecount[t].get(r, 0) >= min_races]
+            track_stats[t] = ((float(np.mean(effs)), float(np.std(effs)))
+                              if len(effs) >= 2 else None)
+
+        all_riders = set(r for t in tracks for r in cur_ratings[t])
+        composites = {}
+        qual_races = {}
+        for rider in all_riders:
+            ws = wt = 0.0
+            cats = 0
+            total_races = 0
+            for t in tracks:
+                if rider not in cur_ratings[t]:
+                    continue
+                n = cur_racecount[t].get(rider, 0)
+                if n < min_races or track_stats[t] is None:
+                    continue
+                mu, sigma = cur_ratings[t][rider]
+                if sigma == 0:
+                    continue
+                t_mean, t_std = track_stats[t]
+                if t_std == 0:
+                    continue
+                eff = mu - z * sigma
+                w = (1.0 / sigma) * weights.get(t, 1.0)
+                ws += w * ((eff - t_mean) / t_std)
+                wt += w
+                cats += 1
+                total_races += n
+            if cats == 0 or wt == 0:
+                continue
+            composites[rider] = ws / wt
+            qual_races[rider] = total_races
+
+        history.append({
+            "idx":        global_idx,
+            "date":       date,
+            "race_name":  snap["race_name"],
+            "track":      track,
+            "raced":      raced_here,
+            "qual_races": qual_races,
+            "composites": composites,
+        })
+
+    return history
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -184,31 +295,33 @@ def elo(mu, sigma, z=0.0):
 
 def export_meta(races, engine, engine_mt, out_dir, min_races):
     type_counts = Counter(r.get("type", "unknown") for r in races)
-    cat_counts = Counter(r.get("category", "unknown") for r in races)
+    cat_counts  = Counter(r.get("category", "unknown") for r in races)
 
     per_track_riders = {
         t: sum(1 for n in eng.race_counts.values() if n >= min_races)
         for t, eng in engine_mt.engines.items()
     }
-
     qualifying_riders = sum(1 for n in engine.race_counts.values()
                             if n >= min_races)
 
     meta = {
-        "first_race_date": races[0]["date"],
-        "last_race_date":  races[-1]["date"],
-        "total_races":     len(races),
-        "total_riders":    len(engine.ratings),
+        "first_race_date":   races[0]["date"],
+        "last_race_date":    races[-1]["date"],
+        "total_races":       len(races),
+        "total_riders":      len(engine.ratings),
         "qualifying_riders": qualifying_riders,
-        "tracks":          list(BT_TRACKS.keys()),
-        "type_counts":     dict(type_counts),
-        "category_counts": dict(cat_counts),
-        "per_track_riders": per_track_riders,
-        "generated_at":    datetime.utcnow().isoformat() + "Z",
+        "tracks":            list(BT_TRACKS.keys()),
+        "composite_tracks":  COMPOSITE_TRACKS,
+        "composite_weights": COMPOSITE_WEIGHTS,
+        "type_counts":       dict(type_counts),
+        "category_counts":   dict(cat_counts),
+        "per_track_riders":  per_track_riders,
+        "generated_at":      datetime.utcnow().isoformat() + "Z",
         "params": {
             "mu_init": MU_INIT, "sigma_init": SIGMA_INIT,
             "beta": BETA, "tau_base": TAU_BASE,
             "tau_per_day": TAU_PER_DAY, "window_size": WINDOW_SIZE,
+            "display_base": DISPLAY_BASE, "display_scale": DISPLAY_SCALE,
         },
     }
     with open(out_dir / "meta.json", "w") as f:
@@ -216,174 +329,247 @@ def export_meta(races, engine, engine_mt, out_dir, min_races):
     print(f"  ✓ meta.json  ({len(races)} races, {len(engine.ratings)} riders)")
 
 
-def export_rider_timeseries(engine, engine_mt, out_dir, min_races):
-    """
-    For each rider that has >= min_races races somewhere, store their elo
-    trajectory over time for the overall engine + each track engine.
+def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
+                             out_dir, min_races):
+    """Per-rider trajectory.
 
-    Format:
-      {
-        "Pogačar Tadej": {
-          "races": ["2019-..", ...],
-          "ALL":  [{"d": "2019-01-15", "elo": 1502, "low": 1498, "high": 1506, "rode": true}, ...],
-          "GC":   [...],
-          ...
-        }
-      }
+    For ALL + each of the 8 tracks we store raw (mu, sigma) at every race the
+    rider actually started; the browser turns that into the ELO / safe-ELO
+    line *and* feeds the head-to-head calculator. For the composite track we
+    store the cross-discipline z-score in normal and safe form.
 
-    `rode` = the rider raced this specific race (true vs carried-forward).
+    Point shape:
+      tracks/ALL : {"d": "2019-..", "m": <mu>, "s": <sigma>}
+      composite  : {"d": "2019-..", "v": <z>, "vs": <z safe>}
     """
     qualifying = {r for r, n in engine.race_counts.items() if n >= min_races}
-    # also include riders that qualify on any single track
     for eng in engine_mt.engines.values():
         for r, n in eng.race_counts.items():
             if n >= min_races:
                 qualifying.add(r)
 
     def trajectory(eng, rider):
-        """μ/σ at every snapshot of this engine; carry forward when absent."""
-        traj = []
-        last_mu, last_sg = MU_INIT, SIGMA_INIT
+        traj, last = [], None
         for snap in eng.history:
-            rode = rider in snap["deltas"]
             if rider in snap["ratings"]:
-                mu, sg = snap["ratings"][rider]
-                last_mu, last_sg = mu, sg
-            else:
-                mu, sg = last_mu, last_sg
-            if rode:
-                traj.append({
-                    "d":   snap["date"],
-                    "elo": round(elo(mu, sg, 0.0), 1),
-                    "low": round(elo(mu, sg, 2.0), 1),
-                    "high":round(elo(mu, -sg, 2.0), 1),
-                })
+                last = snap["ratings"][rider]
+            if rider in snap["deltas"] and last is not None:
+                mu, sg = last
+                traj.append({"d": snap["date"],
+                             "m": round(float(mu), 5),
+                             "s": round(float(sg), 5)})
         return traj
+
+    # composite series, keyed by rider, aligned by event index
+    comp_series = {}
+    safe_by_idx = {h["idx"]: h["composites"] for h in comp_safe}
+    for h in comp_norm:
+        s_comp = safe_by_idx.get(h["idx"], {})
+        for rider in h["raced"]:
+            if rider not in h["composites"]:
+                continue
+            comp_series.setdefault(rider, []).append({
+                "d":  h["date"],
+                "v":  round(float(h["composites"][rider]), 5),
+                "vs": round(float(s_comp.get(rider, h["composites"][rider])), 5),
+            })
 
     out = {}
     for rider in sorted(qualifying):
-        out[rider] = {"ALL": trajectory(engine, rider)}
+        rec = {"ALL": trajectory(engine, rider)}
         for track in engine_mt.tracks:
             eng = engine_mt.engines[track]
             if rider in eng.ratings:
-                out[rider][track] = trajectory(eng, rider)
+                rec[track] = trajectory(eng, rider)
+        if rider in comp_series:
+            rec["composite"] = comp_series[rider]
+        out[rider] = rec
 
     with open(out_dir / "rider_timeseries.json", "w") as f:
         json.dump(out, f, separators=(",", ":"))
     print(f"  ✓ rider_timeseries.json  ({len(out)} riders)")
 
 
-def export_top5_history(engine, engine_mt, out_dir, min_races, top_n=10,
-                        downsample_every_n_races=1):
-    """
-    For each engine (ALL + per-track), snapshot the top-N (by μ) at every
-    race the engine saw. The web page uses this for the leaderboard scrubber.
+# ── shared: rank a normal BT engine snapshot ────────────────────────────────
+def _ranked_rows(snap, race_counts, min_races):
+    rows = []
+    for rider, (mu, sg) in snap["ratings"].items():
+        n = race_counts.get(rider, 0)
+        if n < min_races:
+            continue
+        rows.append((rider,
+                     round(elo(mu, sg, 0.0), 1),
+                     round(elo(mu, sg, 2.0), 1),
+                     n))
+    return rows
 
-    Each entry: {"date": ..., "race": ..., "top": [{name, elo, races}, ...]}.
-    """
-    def top_at_snapshot(snap, race_counts_at_snapshot):
-        items = []
-        for rider, (mu, sg) in snap["ratings"].items():
-            n = race_counts_at_snapshot.get(rider, 0)
-            if n < min_races:
-                continue
-            items.append((rider, mu, sg, n))
-        items.sort(key=lambda x: -x[1])  # by μ
-        return [
-            {"name": r, "elo": round(elo(mu, sg, 0.0), 1),
-             "low": round(elo(mu, sg, 2.0), 1), "races": n}
-            for r, mu, sg, n in items[:top_n]
-        ]
 
+def export_top_history(engine, engine_mt, comp_norm, comp_safe,
+                       out_dir, min_races, top_n=10,
+                       downsample_every_n_races=1):
+    """Per-engine top-N at every (optionally down-sampled) snapshot.
+
+    Each snapshot carries BOTH orderings so the page can switch the "safe"
+    toggle with no recompute:
+      {"date","race","top":[{name,elo,low,races}], "top_safe":[...]}
+    Composite snapshots use {name, val, races} instead of elo/low.
+    """
     def history_for(eng):
-        running_count = {}
-        out = []
+        running, out = {}, []
+        n_snaps = len(eng.history)
         for i, snap in enumerate(eng.history):
             for rider in snap["deltas"]:
-                running_count[rider] = running_count.get(rider, 0) + 1
-            if i % downsample_every_n_races != 0 and i != len(eng.history) - 1:
+                running[rider] = running.get(rider, 0) + 1
+            if i % downsample_every_n_races != 0 and i != n_snaps - 1:
                 continue
+            rows = _ranked_rows(snap, running, min_races)
+            by_mu  = sorted(rows, key=lambda x: -x[1])[:top_n]
+            by_low = sorted(rows, key=lambda x: -x[2])[:top_n]
             out.append({
-                "date":  snap["date"],
-                "race":  snap["race_name"],
-                "top":   top_at_snapshot(snap, running_count),
+                "date": snap["date"], "race": snap["race_name"],
+                "top":      [{"name": r, "elo": e, "low": lo, "races": n}
+                             for r, e, lo, n in by_mu],
+                "top_safe": [{"name": r, "elo": e, "low": lo, "races": n}
+                             for r, e, lo, n in by_low],
             })
+        return out
+
+    def composite_history():
+        safe_by_idx = {h["idx"]: h for h in comp_safe}
+        out = []
+        n_ev = len(comp_norm)
+        for i, h in enumerate(comp_norm):
+            if i % downsample_every_n_races != 0 and i != n_ev - 1:
+                continue
+            sh = safe_by_idx.get(h["idx"], h)
+
+            def pack(hist):
+                items = sorted(hist["composites"].items(),
+                               key=lambda kv: -kv[1])[:top_n]
+                return [{"name": r,
+                         "val": round(float(v), 4),
+                         "races": hist["qual_races"].get(r, 0)}
+                        for r, v in items]
+
+            out.append({"date": h["date"], "race": h["race_name"],
+                        "top": pack(h), "top_safe": pack(sh)})
         return out
 
     out = {"ALL": history_for(engine)}
     for track in engine_mt.tracks:
         out[track] = history_for(engine_mt.engines[track])
+    out["composite"] = composite_history()
 
-    with open(out_dir / "top5_history.json", "w") as f:
+    with open(out_dir / "top_history.json", "w") as f:
         json.dump(out, f, separators=(",", ":"))
-    print(f"  ✓ top5_history.json  ({len(out)} engines)")
+    print(f"  ✓ top_history.json  ({len(out)} engines)")
 
 
-def export_current_top5(engine, engine_mt, out_dir, min_races, top_n=20):
-    """Snapshot of final standings for fast initial render."""
-    def current_top(eng):
-        rows = []
-        for rider, rating in eng.ratings.items():
-            n = eng.race_counts.get(rider, 0)
-            if n < min_races:
+def export_hall_of_fame(engine, engine_mt, comp_norm, comp_safe,
+                        out_dir, min_races, goat_n=10):
+    """Per engine, for BOTH the normal (mu) and safe (mu-2sigma) metric:
+
+      reigns : merged spells where a rider held #1, [{name,start,end,days}]
+      goat   : the `goat_n` highest career peaks ever recorded in the time
+               frame, [{name, peak, date, races}]
+
+    Computed from the FULL history (independent of the scrubber down-sample)
+    and never filtered by the timeline slider.
+    """
+    def days_between(a, b):
+        return (datetime.fromisoformat(b) - datetime.fromisoformat(a)).days
+
+    def merge_reigns(leader_seq):
+        # leader_seq : [(date, name)] in chronological order
+        reigns = []
+        for date, name in leader_seq:
+            if name is None:
                 continue
-            rows.append({
-                "name":  rider,
-                "elo":   round(elo(rating.mu, rating.sigma, 0.0), 1),
-                "low":   round(elo(rating.mu, rating.sigma, 2.0), 1),
-                "mu":    round(rating.mu, 3),
-                "sigma": round(rating.sigma, 3),
-                "races": n,
-            })
-        rows.sort(key=lambda x: -x["elo"])
-        return rows[:top_n]
+            if reigns and reigns[-1]["name"] == name:
+                reigns[-1]["end"] = date
+            else:
+                reigns.append({"name": name, "start": date, "end": date})
+        for r in reigns:
+            r["days"] = max(days_between(r["start"], r["end"]), 0)
+        return reigns
 
-    # Composite: z-scored, inverse-sigma weighted (matches notebook)
-    track_data = {}
-    for track in COMPOSITE_TRACKS:
-        eng = engine_mt.engines[track]
-        track_data[track] = {
-            r: (rt.mu, rt.sigma, eng.race_counts.get(r, 0))
-            for r, rt in eng.ratings.items()
-            if eng.race_counts.get(r, 0) >= min_races
+    def hof_for_engine(eng):
+        running = {}
+        lead_norm, lead_safe = [], []
+        peak_norm, peak_safe = {}, {}   # rider -> (val, date, races)
+        for snap in eng.history:
+            for rider in snap["deltas"]:
+                running[rider] = running.get(rider, 0) + 1
+            rows = _ranked_rows(snap, running, min_races)
+            if not rows:
+                lead_norm.append((snap["date"], None))
+                lead_safe.append((snap["date"], None))
+                continue
+            top_mu  = max(rows, key=lambda x: x[1])
+            top_low = max(rows, key=lambda x: x[2])
+            lead_norm.append((snap["date"], top_mu[0]))
+            lead_safe.append((snap["date"], top_low[0]))
+            for rider, e, lo, n in rows:
+                if rider not in peak_norm or e > peak_norm[rider][0]:
+                    peak_norm[rider] = (e, snap["date"], n)
+                if rider not in peak_safe or lo > peak_safe[rider][0]:
+                    peak_safe[rider] = (lo, snap["date"], n)
+
+        def goat(peak):
+            rows = sorted(peak.items(), key=lambda kv: -kv[1][0])[:goat_n]
+            return [{"name": r, "peak": round(v, 1), "date": d, "races": n}
+                    for r, (v, d, n) in rows]
+
+        return {
+            "normal": {"reigns": merge_reigns(lead_norm),
+                       "goat":   goat(peak_norm)},
+            "safe":   {"reigns": merge_reigns(lead_safe),
+                       "goat":   goat(peak_safe)},
         }
-    track_stats = {}
-    for track, riders in track_data.items():
-        mus = [v[0] for v in riders.values()]
-        if len(mus) >= 2:
-            track_stats[track] = (float(np.mean(mus)), float(np.std(mus)))
 
-    composite_rows = []
-    all_riders = set(r for d in track_data.values() for r in d)
-    for rider in all_riders:
-        ws, wt, cats = 0.0, 0.0, 0
-        for track in COMPOSITE_TRACKS:
-            if rider not in track_data[track] or track not in track_stats:
-                continue
-            mu, sigma, _ = track_data[track][rider]
-            t_mean, t_std = track_stats[track]
-            if t_std == 0:
-                continue
-            w = 1.0 / sigma
-            ws += w * ((mu - t_mean) / t_std)
-            wt += w
-            cats += 1
-        if cats and wt:
-            composite_rows.append({
-                "name":  rider,
-                "composite": round(ws / wt, 4),
-                "cats":  cats,
-            })
-    composite_rows.sort(key=lambda x: -x["composite"])
+    def hof_composite():
+        safe_by_idx = {h["idx"]: h for h in comp_safe}
+        lead_norm, lead_safe = [], []
+        peak_norm, peak_safe = {}, {}
+        for h in comp_norm:
+            sh = safe_by_idx.get(h["idx"], h)
+            if h["composites"]:
+                bn = max(h["composites"].items(), key=lambda kv: kv[1])
+                lead_norm.append((h["date"], bn[0]))
+                for r, v in h["composites"].items():
+                    if r not in peak_norm or v > peak_norm[r][0]:
+                        peak_norm[r] = (v, h["date"], h["qual_races"].get(r, 0))
+            else:
+                lead_norm.append((h["date"], None))
+            if sh["composites"]:
+                bs = max(sh["composites"].items(), key=lambda kv: kv[1])
+                lead_safe.append((h["date"], bs[0]))
+                for r, v in sh["composites"].items():
+                    if r not in peak_safe or v > peak_safe[r][0]:
+                        peak_safe[r] = (v, h["date"], sh["qual_races"].get(r, 0))
+            else:
+                lead_safe.append((h["date"], None))
 
-    out = {
-        "ALL": current_top(engine),
-        "composite": composite_rows[:top_n],
-        **{t: current_top(engine_mt.engines[t]) for t in engine_mt.tracks},
-    }
-    with open(out_dir / "current_top5.json", "w") as f:
+        def goat(peak):
+            rows = sorted(peak.items(), key=lambda kv: -kv[1][0])[:goat_n]
+            return [{"name": r, "peak": round(v, 3), "date": d, "races": n}
+                    for r, (v, d, n) in rows]
+
+        return {
+            "normal": {"reigns": merge_reigns(lead_norm),
+                       "goat":   goat(peak_norm)},
+            "safe":   {"reigns": merge_reigns(lead_safe),
+                       "goat":   goat(peak_safe)},
+        }
+
+    out = {"ALL": hof_for_engine(engine)}
+    for track in engine_mt.tracks:
+        out[track] = hof_for_engine(engine_mt.engines[track])
+    out["composite"] = hof_composite()
+
+    with open(out_dir / "hall_of_fame.json", "w") as f:
         json.dump(out, f, separators=(",", ":"))
-    print(f"  ✓ current_top5.json  ({len(out)} engines + composite)")
+    print(f"  ✓ hall_of_fame.json  ({len(out)} engines)")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -391,14 +577,11 @@ def export_current_top5(engine, engine_mt, out_dir, min_races, top_n=20):
 # ════════════════════════════════════════════════════════════════════════════
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", default="./data",
-                        help="Directory containing 2019.json .. 2026.json")
-    parser.add_argument("--out-dir", default="./docs/outputs",
-                        help="Where to write the JSON exports")
-    parser.add_argument("--min-races", type=int, default=2,
-                        help="Minimum race count for a rider to be exported")
+    parser.add_argument("--data-dir", default="./data")
+    parser.add_argument("--out-dir", default="./docs/outputs")
+    parser.add_argument("--min-races", type=int, default=2)
     parser.add_argument("--downsample", type=int, default=1,
-                        help="Snapshot every Nth race in top5_history (1 = all)")
+                        help="Snapshot every Nth race in top_history (1 = all)")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -422,13 +605,21 @@ def main():
     for race in races:
         engine_mt.process_race(race)
 
+    print("⚙️  Computing composite (cumulative) trajectory ...")
+    comp_norm = compute_composite_history(engine_mt, safe=False,
+                                          min_races=args.min_races)
+    comp_safe = compute_composite_history(engine_mt, safe=True,
+                                          min_races=args.min_races)
+
     print(f"💾 Writing exports to {out_dir}/ ...")
     export_meta(races, engine, engine_mt, out_dir, args.min_races)
-    export_rider_timeseries(engine, engine_mt, out_dir, args.min_races)
-    export_top5_history(engine, engine_mt, out_dir,
-                        args.min_races, top_n=10,
-                        downsample_every_n_races=args.downsample)
-    export_current_top5(engine, engine_mt, out_dir, args.min_races, top_n=20)
+    export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
+                            out_dir, args.min_races)
+    export_top_history(engine, engine_mt, comp_norm, comp_safe,
+                       out_dir, args.min_races, top_n=10,
+                       downsample_every_n_races=args.downsample)
+    export_hall_of_fame(engine, engine_mt, comp_norm, comp_safe,
+                        out_dir, args.min_races, goat_n=10)
     print("\n✅ Done.")
 
 
