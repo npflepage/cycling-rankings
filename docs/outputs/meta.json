@@ -1,0 +1,65 @@
+{
+  "first_race_date": "2019-01-15",
+  "last_race_date": "2026-05-15",
+  "total_races": 1256,
+  "total_riders": 1930,
+  "qualifying_riders": 1740,
+  "tracks": [
+    "sprint",
+    "TT",
+    "cobbles",
+    "punch",
+    "mountain",
+    "GC",
+    "stage_race",
+    "classics"
+  ],
+  "composite_tracks": [
+    "cobbles",
+    "punch",
+    "mountain",
+    "sprint",
+    "GC"
+  ],
+  "composite_weights": {
+    "cobbles": 1.0,
+    "punch": 1.0,
+    "mountain": 1.0,
+    "sprint": 1.0,
+    "GC": 1.75
+  },
+  "type_counts": {
+    "sprint": 344,
+    "punch": 269,
+    "GC": 104,
+    "TT": 113,
+    "mountain": 372,
+    "cobbles": 54
+  },
+  "category_counts": {
+    "stage": 994,
+    "GC": 104,
+    "classic": 158
+  },
+  "per_track_riders": {
+    "sprint": 1594,
+    "TT": 1275,
+    "cobbles": 695,
+    "punch": 986,
+    "mountain": 1400,
+    "GC": 1235,
+    "stage_race": 1621,
+    "classics": 1316
+  },
+  "generated_at": "2026-05-19T12:44:41.741898Z",
+  "params": {
+    "mu_init": 25.0,
+    "sigma_init": 8.333333333333334,
+    "beta": 4.166666666666667,
+    "tau_base": 0.08333333333333333,
+    "tau_per_day": 0.02,
+    "window_size": 16,
+    "display_base": 1500,
+    "display_scale": 60
+  }
+}
