@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Model · Cycling BT Rankings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --c-yellow:#F5C842; --c-accent:#E8431A; --c-bg:#0e0e0e;
+    --c-card:#1a1a1a; --c-mid:#242424; --c-text:#f0f0f0;
+    --c-muted:#888; --c-faint:#555;
+    --c-border:rgba(255,255,255,0.08); --c-border-hi:rgba(255,255,255,0.16);
+    --font-head:'Barlow Condensed',sans-serif;
+    --font-body:'Barlow',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  html,body { background:var(--c-bg); color:var(--c-text); font-family:var(--font-body); min-height:100vh; -webkit-font-smoothing:antialiased; }
+  .container { max-width:860px; margin:0 auto; padding:0 24px; }
+
+  /* NAV */
+  .site-nav { position:sticky; top:0; z-index:100; background:rgba(14,14,14,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--c-border); }
+  .site-nav .container { display:flex; align-items:center; gap:32px; height:48px; max-width:1300px; }
+  .nav-brand { font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--c-yellow); }
+  .nav-links { display:flex; gap:4px; }
+  .nav-link { font-family:var(--font-head); font-size:12px; letter-spacing:2px; text-transform:uppercase; padding:6px 14px; border-radius:4px; color:var(--c-muted); text-decoration:none; transition:all 0.15s; }
+  .nav-link:hover { color:var(--c-text); background:var(--c-mid); }
+  .nav-link.active { color:var(--c-yellow); background:rgba(245,200,66,0.10); }
+
+  /* HERO */
+  .hero { padding:52px 0 36px; border-bottom:1px solid var(--c-border); position:relative; overflow:hidden; }
+  .hero-bg { position:absolute; right:-40px; top:-30px; font-family:var(--font-head); font-size:220px; font-weight:700; color:rgba(245,200,66,0.03); line-height:1; pointer-events:none; letter-spacing:-6px; user-select:none; }
+  .hero-eyebrow { font-family:var(--font-head); font-size:11px; letter-spacing:4px; color:var(--c-yellow); text-transform:uppercase; margin-bottom:12px; }
+  .hero-title { font-family:var(--font-head); font-size:56px; font-weight:700; line-height:0.95; margin-bottom:14px; letter-spacing:-1px; }
+  .hero-title span { color:var(--c-yellow); }
+  .hero-sub { font-size:15px; color:#999; line-height:1.6; max-width:640px; }
+
+  /* TOC */
+  .toc { background:var(--c-card); border:1px solid var(--c-border); border-radius:10px; padding:24px 28px; margin:36px 0; }
+  .toc-title { font-family:var(--font-head); font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--c-muted); margin-bottom:14px; }
+  .toc ol { list-style:none; counter-reset:toc; }
+  .toc li { counter-increment:toc; margin:5px 0; }
+  .toc li::before { content:counter(toc) ". "; font-family:var(--font-mono); font-size:12px; color:var(--c-faint); }
+  .toc a { color:var(--c-muted); text-decoration:none; font-size:14px; transition:color 0.15s; }
+  .toc a:hover { color:var(--c-yellow); }
+
+  /* CONTENT */
+  .doc-body { padding:8px 0 64px; }
+  .doc-section { padding:40px 0 8px; border-top:1px solid var(--c-border); margin-top:36px; }
+  .doc-section:first-child { border-top:none; margin-top:0; }
+  .sec-number { font-family:var(--font-head); font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--c-yellow); margin-bottom:8px; }
+  h2 { font-family:var(--font-head); font-size:34px; font-weight:700; line-height:1.1; margin-bottom:18px; letter-spacing:-0.5px; }
+  h3 { font-family:var(--font-head); font-size:18px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--c-muted); margin:28px 0 12px; }
+  p { font-size:15px; line-height:1.75; color:#ccc; margin-bottom:16px; max-width:720px; }
+  strong { color:var(--c-text); font-weight:600; }
+  code { background:#000; padding:2px 6px; border-radius:3px; font-family:var(--font-mono); font-size:12px; color:#cfcfcf; }
+  ul,ol { padding-left:24px; margin-bottom:16px; }
+  li { font-size:15px; line-height:1.7; color:#ccc; margin-bottom:6px; max-width:700px; }
+  li strong { color:var(--c-text); }
+
+  /* FORMULA */
+  .formula { background:var(--c-card); border:1px solid var(--c-border); border-left:3px solid var(--c-yellow); border-radius:8px; padding:20px 24px; margin:20px 0; overflow-x:auto; }
+  .formula.accent { border-left-color:var(--c-accent); }
+  .formula-label { font-family:var(--font-mono); font-size:11px; color:var(--c-faint); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px; }
+
+  /* REMARK */
+  .remark { background:rgba(232,67,26,0.07); border:1px solid rgba(232,67,26,0.2); border-radius:8px; padding:16px 20px; margin:20px 0; }
+  .remark-label { font-family:var(--font-head); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--c-accent); margin-bottom:8px; }
+  .remark p { margin:0; font-size:14px; color:#bbb; }
+
+  /* TABLE */
+  .table-wrap { overflow-x:auto; margin:20px 0; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { font-family:var(--font-head); font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--c-muted); padding:10px 14px; border-bottom:1px solid var(--c-border-hi); text-align:left; }
+  td { padding:10px 14px; color:#ccc; border-bottom:1px solid var(--c-border); }
+  tr:last-child td { border-bottom:none; }
+  td code { font-size:11px; }
+  td strong { color:var(--c-yellow); }
+  .notation { background:var(--c-card); border-radius:10px; }
+  .notation th,.notation td { padding:10px 18px; }
+  .notation td:first-child { font-family:var(--font-mono); color:var(--c-yellow); width:90px; }
+
+  /* FOOTER */
+  footer { border-top:1px solid var(--c-border); padding:24px 0 32px; font-size:12px; color:var(--c-faint); font-family:var(--font-mono); }
+  footer .container { max-width:1300px; display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  footer a { color:var(--c-muted); text-decoration:none; }
+  footer a:hover { color:var(--c-yellow); }
+
+  @media (max-width:600px) {
+    .hero-title { font-size:38px; }
+    .hero { padding:36px 0 28px; }
+    .container { padding:0 16px; }
+    h2 { font-size:26px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="container">
+    <span class="nav-brand">BT Cycling</span>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link">Rankings</a>
+      <a href="model.html" class="nav-link active">Doc</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container" style="position:relative;">
+    <div class="hero-bg">BT</div>
+    <div class="hero-eyebrow">Model documentation</div>
+    <h1 class="hero-title">Time-Aware <span>Bradley–Terry</span><br/>Rider Model</h1>
+    <p class="hero-sub">Design, inference, and dashboard architecture for the World Tour 2019–2026 cycling rankings system. Eight discipline tracks, composite scoring, and live head-to-head win probabilities.</p>
+  </div>
+</section>
+
+<div class="container">
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#intro">Introduction and Motivation</a></li>
+      <li><a href="#bt">The Bradley–Terry Model</a></li>
+      <li><a href="#time">Time-Awareness: Sigma Inflation</a></li>
+      <li><a href="#partial">Partial Pairing</a></li>
+      <li><a href="#tracks">Multi-Track Architecture</a></li>
+      <li><a href="#elo">Display Rating: ELO-Like Rescaling</a></li>
+      <li><a href="#composite">Cross-Discipline Composite Score</a></li>
+      <li><a href="#alltime">All-Time Records: Reigns and GOAT</a></li>
+      <li><a href="#h2h">Online Head-to-Head Win Probability</a></li>
+      <li><a href="#export">Static Data Export Architecture</a></li>
+      <li><a href="#ci">CI/CD Pipeline</a></li>
+      <li><a href="#limits">Limitations and Future Directions</a></li>
+      <li><a href="#notation">Notation Summary</a></li>
+    </ol>
+  </div>
+
+  <div class="doc-body">
+
+    <div class="doc-section" id="intro">
+      <div class="sec-number">Section 1</div>
+      <h2>Introduction and Motivation</h2>
+      <p>Professional cycling poses a unique ranking challenge. Unlike team sports with balanced schedules, a cyclist in a given season may start anywhere from a handful to over a hundred races, against wildly varying fields, across radically different terrain types. A sprinter competes almost exclusively against other sprinters in flat finishes; a climber is mostly absent from those races. A single global ELO score conflates apples and mountains.</p>
+      <p>Three further complications make the problem harder:</p>
+      <ol>
+        <li><strong>Non-stationarity.</strong> Riders improve, peak, decline, get injured, change team, retire and return. A race five years ago is less informative about today's rider than last month's race.</li>
+        <li><strong>Sparse, unbalanced comparisons.</strong> In a given race, only the riders who start are compared. Fields of 100–200 starters generate \(\binom{n}{2}\) partial orderings, but the comparison graph across the whole season is far from complete.</li>
+        <li><strong>Heterogeneous importance.</strong> A Grand Tour stage counts very differently from a mid-week one-day race, both in prestige and in information content.</li>
+      </ol>
+      <p>This project addresses all three with a <strong>time-aware, importance-weighted, multi-track partial-pairing Bradley–Terry model</strong>, using the <code>openskill</code> library's <code>BradleyTerryPart</code> backend, and exposes the results through an interactive web dashboard.</p>
+    </div>
+
+    <div class="doc-section" id="bt">
+      <div class="sec-number">Section 2</div>
+      <h2>The Bradley–Terry Model</h2>
+      <h3>Core probabilistic model</h3>
+      <p>Given two riders \(i\) and \(j\) with scalar strengths \(\lambda_i, \lambda_j > 0\), the classical Bradley–Terry model assigns:</p>
+      <div class="formula">
+        <div class="formula-label">Classical BT</div>
+        \[ P(i \text{ beats } j) = \frac{\lambda_i}{\lambda_i + \lambda_j} \]
+      </div>
+      <p>In the Bayesian (TrueSkill / openskill) formulation each rider carries a <strong>Gaussian belief</strong> over their true skill \(s_i\): \( s_i \sim \mathcal{N}(\mu_i,\, \sigma_i^2) \). \(\mu_i\) is the current best estimate of skill; \(\sigma_i\) encodes uncertainty. A fresh rider has high \(\sigma\); a rider with thousands of observed head-to-heads has low \(\sigma\).</p>
+      <h3>The Thurstone–Mosteller win-probability</h3>
+      <p>The probability that \(i\) beats \(j\), marginalised over both latent skills and per-performance noise \(\varepsilon \sim \mathcal{N}(0, 2\beta^2)\):</p>
+      <div class="formula">
+        <div class="formula-label">Win probability — Eq. 1</div>
+        \[ P(i \text{ beats } j) = \Phi\!\left( \frac{\mu_i - \mu_j}{\sqrt{2\beta^2 + \sigma_i^2 + \sigma_j^2}} \right) \]
+      </div>
+      <p>where \(\Phi\) is the standard normal CDF and \(\beta = \mu_0 / 6 = 25/6 \approx 4.17\) is the per-race performance standard deviation.</p>
+      <div class="remark">
+        <div class="remark-label">Remark — safe mode and win probability</div>
+        <p>The formula uses raw \(\mu_i\) in the numerator — not a penalty-adjusted version. The uncertainty already enters through \(\sigma_i^2\) in the denominator: a high-\(\sigma\) rider pulls the probability toward \(0.5\) regardless of their \(\mu\). Applying an additional \(\mu - 2\sigma\) discount to both sides would double-count uncertainty. Win probability is therefore independent of the safe/normal toggle.</p>
+      </div>
+    </div>
+
+    <div class="doc-section" id="time">
+      <div class="sec-number">Section 3</div>
+      <h2>Time-Awareness: Sigma Inflation</h2>
+      <h3>The stationarity problem</h3>
+      <p>A standard BT update treats all historical results as equally informative. Two mechanisms discount the past:</p>
+      <ol>
+        <li><strong>Sigma inflation.</strong> Between races, each rider's \(\sigma_i\) is widened proportionally to elapsed calendar time:
+          <div class="formula">
+            <div class="formula-label">Brownian drift</div>
+            \[ \sigma_i(t + \Delta t) \leftarrow \sqrt{\sigma_i(t)^2 + \tau^2 \cdot \Delta t} \]
+          </div>
+          where \(\tau\) is the drift rate (units: skill per day). This is the standard Brownian motion model of non-stationarity.
+        </li>
+        <li><strong>Race importance weighting.</strong> Each race updates skill with a strength proportional to the race's \(\tau\)-weight, reflecting prestige tier (Grand Tour &gt; Monument &gt; World Cup &gt; one-week race).</li>
+      </ol>
+      <p>After a long period of inactivity, \(\sigma_i\) grows large. When the rider races again, the update is correspondingly large — data dominates a wide prior. This automatically handles riders returning from injury, changing teams, or switching focus.</p>
+    </div>
+
+    <div class="doc-section" id="partial">
+      <div class="sec-number">Section 4</div>
+      <h2>Partial Pairing</h2>
+      <p>A typical road race produces a full finishing order over \(n\) starters, generating \(\binom{n}{2}\) binary comparisons. Naively computing all pairings is \(O(n^2)\) per race. The <code>BradleyTerryPart</code> algorithm computes <strong>partial pairings</strong>: each rider is compared only to riders immediately above and below them in the finishing order (within a sliding window), yielding \(O(n \cdot w)\) comparisons while still propagating global ordering information.</p>
+      <p>In a sprint finish, the difference between positions 1 and 50 is often a few centimetres and largely determined by bunch dynamics, not individual skill. Comparing every finisher against every other would overfit to noise. Partial pairing dampens this by concentrating updates on nearby neighbours.</p>
+    </div>
+
+    <div class="doc-section" id="tracks">
+      <div class="sec-number">Section 5</div>
+      <h2>Multi-Track Architecture</h2>
+      <h3>Eight discipline tracks</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Track</th><th>Type</th><th>Example races</th></tr></thead>
+          <tbody>
+            <tr><td>All races (ALL)</td><td>aggregate</td><td>all WT events</td></tr>
+            <tr><td>GC</td><td>type</td><td>Tour de France, Giro, Vuelta</td></tr>
+            <tr><td>Stage race</td><td>category</td><td>all multi-day races</td></tr>
+            <tr><td>Mountain</td><td>type</td><td>mountain finishes</td></tr>
+            <tr><td>Cobbles</td><td>type</td><td>Roubaix, Flanders</td></tr>
+            <tr><td>Punch</td><td>type</td><td>Liège, Amstel Gold</td></tr>
+            <tr><td>Sprint</td><td>type</td><td>Milan–San Remo finishes</td></tr>
+            <tr><td>Time trial</td><td>type</td><td>individual TTs</td></tr>
+            <tr><td>Classics</td><td>category</td><td>one-day UCI monuments</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Mixing terrain types in a single rating conflates orthogonal skills. Van der Poel and Pogačar are both all-time greats, but near-complementary: Van der Poel dominates cobbled classics; Pogačar excels in mountain stages and GC. A global rating would obscure this.</p>
+      <h3>Track types vs. categories</h3>
+      <ul>
+        <li><strong>Types (disjoint):</strong> cobbles, punch, mountain, sprint, GC, time trial — a single race maps to at most one.</li>
+        <li><strong>Categories (overlapping):</strong> stage race, classics — these aggregate across types.</li>
+      </ul>
+    </div>
+
+    <div class="doc-section" id="elo">
+      <div class="sec-number">Section 6</div>
+      <h2>Display Rating: ELO-Like Rescaling</h2>
+      <div class="formula">
+        <div class="formula-label">Display rating — Eq. 2</div>
+        \[ \text{Rating}(i) = 1500 + 60 \times (\mu_i - \mu_0) \]
+      </div>
+      <p>A rider at the prior (\(\mu_i = \mu_0 = 25\)) displays as 1500. For a conservative ranking that penalises uncertainty:</p>
+      <div class="formula accent">
+        <div class="formula-label">Safe mode rating — Eq. 3</div>
+        \[ \text{Rating}_{\text{safe}}(i) = 1500 + 60 \times (\mu_i - 2\sigma_i - \mu_0) \]
+      </div>
+      <p>A rider with high \(\mu\) but high \(\sigma\) (few races) drops significantly; a rider with moderate \(\mu\) and very low \(\sigma\) (many consistent races) rises. Most useful early in the season when race counts differ widely.</p>
+    </div>
+
+    <div class="doc-section" id="composite">
+      <div class="sec-number">Section 7</div>
+      <h2>Cross-Discipline Composite Score</h2>
+      <p>The composite score answers "who is the most complete cyclist?" by aggregating only the five <strong>disjoint</strong> type tracks, avoiding double-counting. For each rider \(i\), snapshot \(t\), and track \(k \in \{\text{cobbles, punch, mountain, sprint, GC}\}\):</p>
+      <ol>
+        <li>Effective skill: \(r_{i,k} = \mu_{i,k} - z\,\sigma_{i,k}\) (\(z=2\) safe, \(z=0\) normal)</li>
+        <li>Field stats at \(t\): mean \(\bar{r}_k(t)\) and std \(s_k(t)\) over all riders who have raced in track \(k\)</li>
+        <li>Per-track z-score, inverse-\(\sigma\) weighted: \(\tilde{z}_{i,k} = \frac{r_{i,k} - \bar{r}_k(t)}{s_k(t)} \cdot \frac{1}{\sigma_{i,k}}\)</li>
+      </ol>
+      <div class="formula">
+        <div class="formula-label">Composite score — Eq. 4</div>
+        \[ C_i(t) = \frac{\displaystyle\sum_{k \in K_i} w_k \cdot \tilde{z}_{i,k}}{\displaystyle\sum_{k \in K_i} w_k} \]
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Track</th><th>Weight \(w_k\)</th></tr></thead>
+          <tbody>
+            <tr><td>Cobbles</td><td>1.00</td></tr>
+            <tr><td>Punch</td><td>1.00</td></tr>
+            <tr><td>Mountain</td><td>1.00</td></tr>
+            <tr><td>Sprint</td><td>1.00</td></tr>
+            <tr><td>GC</td><td><strong>1.75</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>GC is up-weighted because three-week stage racing requires a unique combination of endurance, climbing, time-trialling, and tactical acumen. Z-scoring normalises each track to zero mean and unit variance within its field at each snapshot, making the composite dimensionless and field-adjusted.</p>
+    </div>
+
+    <div class="doc-section" id="alltime">
+      <div class="sec-number">Section 8</div>
+      <h2>All-Time Records: Reigns and GOAT</h2>
+      <h3>Reigns</h3>
+      <p>A reign is a maximal contiguous interval during which rider \(i\) held the #1 position: \(\text{reign}(i) = [t_{\text{start}}, t_{\text{end}}]\). Reigns are computed over the <strong>full engine history</strong>, independent of any downsampling applied to the scrubber. Duration is visualised as a proportional coloured bar.</p>
+      <h3>GOAT</h3>
+      <p>The GOAT ranking identifies the ten riders whose peak rating was highest at any point in the full history: \(\text{peak}(i) = \max_{t}\, \text{Rating}(i, t)\). Peak date and career race count are stored alongside the value. Top-3 receive gold / silver / bronze highlighting.</p>
+    </div>
+
+    <div class="doc-section" id="h2h">
+      <div class="sec-number">Section 9</div>
+      <h2>Online Head-to-Head Win Probability</h2>
+      <p>Precomputing win probabilities for all \(\binom{N}{2}\) pairs at every snapshot is infeasible: with \(N = 1{,}930\) riders, that is nearly 1.9 million pairs per snapshot across 10 tracks. Instead, raw \((\mu_i, \sigma_i)\) tuples are stored in the timeseries JSON, and Eq. 1 is evaluated client-side in the browser for any chosen pair.</p>
+      <p>The standard normal CDF is approximated using Abramowitz &amp; Stegun formula 7.1.26:</p>
+      <div class="formula">
+        <div class="formula-label">erf approximation (max error &lt; 1.5×10⁻⁷)</div>
+        \[ \operatorname{erf}(x) \approx 1 - (a_1 t + a_2 t^2 + a_3 t^3 + a_4 t^4 + a_5 t^5)\,e^{-x^2}, \quad t = \frac{1}{1 + 0.3275911\,|x|} \]
+      </div>
+      <p>Carry-forward is used for the rating lookup: if rider \(i\) has no race in the selected track after date \(d\), their most recent \((\mu, \sigma)\) before \(d\) is used.</p>
+    </div>
+
+    <div class="doc-section" id="export">
+      <div class="sec-number">Section 10</div>
+      <h2>Static Data Export Architecture</h2>
+      <p>The dashboard is a <strong>static GitHub Pages site</strong> with no backend. All computation happens at export time (Python) or render time (JavaScript).</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><code>meta.json</code></td><td>Race counts, date range, model parameters (\(\mu_0\), \(\beta\), display scale), composite config</td></tr>
+            <tr><td><code>rider_timeseries.json</code></td><td>Sparse \((\mu, \sigma)\) per rider per track per race event, plus composite z-scores</td></tr>
+            <tr><td><code>top_history.json</code></td><td>Top-10 snapshot at each race event in both normal and safe order, per track</td></tr>
+            <tr><td><code>hall_of_fame.json</code></td><td>Full reign sequence and GOAT top-10 per track and metric, over complete history</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Quantity</th><th>Where computed</th><th>Depends on</th></tr></thead>
+          <tbody>
+            <tr><td>ELO display rating</td><td>Browser (JS)</td><td>\(\mu\), \(\sigma\), mode</td></tr>
+            <tr><td>Safe/normal toggle</td><td>Browser (JS)</td><td>local state</td></tr>
+            <tr><td>Head-to-head probability</td><td>Browser (JS)</td><td>\(\mu\), \(\sigma\), \(\beta\)</td></tr>
+            <tr><td>Snapshot Top 10</td><td>Python export</td><td>track, metric</td></tr>
+            <tr><td>Reigns / GOAT</td><td>Python export</td><td>full history</td></tr>
+            <tr><td>Composite z-scores</td><td>Python export</td><td>all 5 type tracks</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="doc-section" id="ci">
+      <div class="sec-number">Section 11</div>
+      <h2>CI/CD Pipeline</h2>
+      <ol>
+        <li>A push to <code>data/**</code> or <code>model/**</code> triggers the <strong>Build BT exports</strong> workflow.</li>
+        <li>The workflow installs dependencies via <code>uv</code>, runs the exporter, and commits the four JSON files (<code>git add -f</code> to override <code>.gitignore</code>).</li>
+        <li>That commit triggers GitHub's built-in <strong>pages build and deployment</strong>, deploying the <code>/docs</code> folder to the live site.</li>
+      </ol>
+      <p>The JSON outputs are git-ignored but force-added by CI. HTML-only changes trigger Pages deployment directly, without re-running the exporter.</p>
+    </div>
+
+    <div class="doc-section" id="limits">
+      <div class="sec-number">Section 12</div>
+      <h2>Limitations and Future Directions</h2>
+      <h3>Known limitations</h3>
+      <ul>
+        <li><strong>DNF and DNS not modelled.</strong> Abandonments carry information but are currently excluded.</li>
+        <li><strong>Team effects ignored.</strong> Domestique roles mean finishing position drastically understates or overstates actual contribution.</li>
+        <li><strong>Composite requires participation.</strong> A rider who has never raced cobbled classics has no cobbles component — their composite averages over fewer tracks.</li>
+        <li><strong>No cross-track transfer.</strong> A strong mountain rider gets no prior advantage in the mountain track without having raced there.</li>
+      </ul>
+      <h3>Possible extensions</h3>
+      <ul>
+        <li><strong>Hierarchical model.</strong> Pool information across tracks via a rider-level hyperprior, allowing cross-discipline transfer.</li>
+        <li><strong>Ordinal likelihood.</strong> Replace binary win/loss with a full Plackett–Luce model over the finishing order.</li>
+        <li><strong>Covariate adjustment.</strong> Include race-level features (elevation gain, expected finishing speed, weather) to separate terrain affinity from raw strength.</li>
+        <li><strong>Form windows.</strong> Add a short-window component capturing hot/cold streaks separately from long-term ability.</li>
+      </ul>
+    </div>
+
+    <div class="doc-section" id="notation">
+      <div class="sec-number">Section 13</div>
+      <h2>Notation Summary</h2>
+      <div class="table-wrap">
+        <table class="notation">
+          <thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>\(\mu_i\)</td><td>Mean skill estimate for rider \(i\)</td></tr>
+            <tr><td>\(\sigma_i\)</td><td>Skill uncertainty (std. dev.) for rider \(i\)</td></tr>
+            <tr><td>\(\beta\)</td><td>Per-race performance noise (\(= 25/6\))</td></tr>
+            <tr><td>\(\mu_0\)</td><td>Prior mean skill (\(= 25\))</td></tr>
+            <tr><td>\(\tau\)</td><td>Sigma drift rate (time decay)</td></tr>
+            <tr><td>\(w_k\)</td><td>Composite weight for track \(k\)</td></tr>
+            <tr><td>\(\Phi\)</td><td>Standard normal CDF</td></tr>
+            <tr><td>\(C_i(t)\)</td><td>Composite score for rider \(i\) at time \(t\)</td></tr>
+            <tr><td>\(z\)</td><td>Safe-mode multiplier (\(z=2\) safe, \(z=0\) normal)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <div>Time-aware Bradley–Terry · openskill BradleyTerryPart · World Tour 2019–2026</div>
+    <div><a href="https://github.com/npflepage/cycling-rankings" target="_blank">GitHub</a> · <a href="https://github.com/openskill" target="_blank">openskill</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
