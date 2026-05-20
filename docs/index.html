@@ -36,6 +36,62 @@
 
   .container { max-width: 1300px; margin: 0 auto; padding: 0 24px; }
 
+  /* ─── NAV ───────────────────────────────────────────────────────── */
+  .site-nav {
+    background: var(--c-bg);
+    border-bottom: 1px solid var(--c-border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-inner {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    height: 48px;
+  }
+  .nav-brand {
+    font-family: var(--font-head); font-size: 13px;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--c-muted);
+  }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-link {
+    font-family: var(--font-head); font-size: 12px;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 4px;
+    text-decoration: none; color: var(--c-muted);
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-link:hover { color: var(--c-text); border-color: var(--c-border); }
+  .nav-link.active {
+    color: var(--c-yellow); border-color: rgba(245,200,66,0.3);
+    background: rgba(245,200,66,0.06);
+  }
+
+  .site-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(14,14,14,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--c-border);
+  }
+  .site-nav .container {
+    display: flex; align-items: center; gap: 32px; height: 48px;
+  }
+  .nav-brand {
+    font-family: var(--font-head); font-size: 13px;
+    font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--c-yellow);
+  }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-link {
+    font-family: var(--font-head); font-size: 12px;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 6px 14px; border-radius: 4px;
+    color: var(--c-muted); text-decoration: none;
+    transition: all 0.15s;
+  }
+  .nav-link:hover { color: var(--c-text); background: var(--c-mid); }
+  .nav-link.active { color: var(--c-yellow); background: rgba(245,200,66,0.10); }
+
   /* ─── HERO ───────────────────────────────────────────────────────── */
   .hero {
     padding: 48px 0 32px;
@@ -495,12 +551,33 @@
 </head>
 <body>
 
+<nav class="site-nav">
+  <div class="container">
+    <span class="nav-brand">BT Cycling</span>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link active">Rankings</a>
+      <a href="model.html" class="nav-link">Doc</a>
+    </div>
+  </div>
+</nav>
+
 <div id="loader" class="loader">
   <div class="loader-spin"></div>
   <div class="loader-text">Loading rankings…</div>
 </div>
 
 <div id="app" style="display:none;">
+
+  <!-- NAV ──────────────────────────────────────────────────────────── -->
+  <nav class="site-nav">
+    <div class="container nav-inner">
+      <span class="nav-brand">BT Rankings</span>
+      <div class="nav-links">
+        <a class="nav-link active" href="index.html">Explorer</a>
+        <a class="nav-link" href="model.html">Model</a>
+      </div>
+    </div>
+  </nav>
 
   <!-- HERO ─────────────────────────────────────────────────────────── -->
   <section class="hero">
