@@ -1,7 +1,7 @@
 {
   "first_race_date": "2018-01-16",
-  "last_race_date": "2026-05-20",
-  "total_races": 1454,
+  "last_race_date": "2026-05-21",
+  "total_races": 1455,
   "total_riders": 2065,
   "qualifying_riders": 1870,
   "tracks": [
@@ -30,14 +30,14 @@
   },
   "type_counts": {
     "sprint": 414,
-    "punch": 299,
+    "punch": 300,
     "GC": 120,
     "TT": 132,
     "cobbles": 61,
     "mountain": 428
   },
   "category_counts": {
-    "stage": 1152,
+    "stage": 1153,
     "GC": 120,
     "classic": 180,
     "null": 2
@@ -52,7 +52,7 @@
     "stage_race": 1755,
     "classics": 1397
   },
-  "generated_at": "2026-05-20T19:57:14.481340Z",
+  "generated_at": "2026-05-21T18:18:02.304328Z",
   "params": {
     "mu_init": 25.0,
     "sigma_init": 8.333333333333334,
