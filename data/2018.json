@@ -9727,10 +9727,10 @@
   ]
 },
 {
-  "id": "giro_d_italia_2018",
-  "name": "Giro d'Italia",
+  "id": "giro_d_italia_2018_s5",
+  "name": "Giro d'Italia Stage 5",
   "date": "2018-05-09",
-  "category": null,
+  "category": "stage",
   "points": 80,
   "type": "sprint",
   "distance_km": 153.0,
@@ -12273,10 +12273,10 @@
   ]
 },
 {
-  "id": "giro_d_italia_2018",
-  "name": "Giro d'Italia",
+  "id": "giro_d_italia_2018_s19",
+  "name": "Giro d'Italia Stage 19",
   "date": "2018-05-25",
-  "category": null,
+  "category": "stage",
   "points": 80,
   "type": "mountain",
   "distance_km": 184.0,
