@@ -37,10 +37,9 @@
     "mountain": 482
   },
   "category_counts": {
-    "stage": 1312,
+    "stage": 1314,
     "GC": 136,
-    "classic": 202,
-    "null": 2
+    "classic": 202
   },
   "per_track_riders": {
     "sprint": 1839,
@@ -52,7 +51,7 @@
     "stage_race": 1876,
     "classics": 1507
   },
-  "generated_at": "2026-05-26T10:25:44.401208Z",
+  "generated_at": "2026-05-26T10:30:46.026408Z",
   "params": {
     "mu_init": 25.0,
     "sigma_init": 8.333333333333334,
