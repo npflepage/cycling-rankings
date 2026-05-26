@@ -1,9 +1,9 @@
 {
-  "first_race_date": "2017-01-17",
+  "first_race_date": "2016-01-19",
   "last_race_date": "2026-05-24",
-  "total_races": 1652,
-  "total_riders": 2206,
-  "qualifying_riders": 1997,
+  "total_races": 1676,
+  "total_riders": 2289,
+  "qualifying_riders": 2054,
   "tracks": [
     "sprint",
     "TT",
@@ -29,29 +29,29 @@
     "GC": 1.75
   },
   "type_counts": {
-    "sprint": 474,
-    "punch": 342,
-    "GC": 136,
-    "cobbles": 68,
-    "TT": 150,
-    "mountain": 482
+    "sprint": 483,
+    "punch": 349,
+    "GC": 139,
+    "cobbles": 69,
+    "TT": 152,
+    "mountain": 484
   },
   "category_counts": {
-    "stage": 1314,
-    "GC": 136,
-    "classic": 202
+    "stage": 1332,
+    "GC": 139,
+    "classic": 205
   },
   "per_track_riders": {
-    "sprint": 1839,
-    "TT": 1489,
-    "cobbles": 799,
-    "punch": 1152,
-    "mountain": 1652,
-    "GC": 1444,
-    "stage_race": 1876,
-    "classics": 1507
+    "sprint": 1897,
+    "TT": 1513,
+    "cobbles": 807,
+    "punch": 1163,
+    "mountain": 1665,
+    "GC": 1467,
+    "stage_race": 1931,
+    "classics": 1526
   },
-  "generated_at": "2026-05-26T10:30:46.026408Z",
+  "generated_at": "2026-05-26T13:05:21.783870Z",
   "params": {
     "mu_init": 25.0,
     "sigma_init": 8.333333333333334,
