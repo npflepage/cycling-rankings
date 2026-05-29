@@ -24887,16 +24887,6 @@
       ]
     },
     {
-      "id": "zlm_tour_2021_gc",
-      "name": "ZLM Tour GC",
-      "date": null,
-      "category": "GC",
-      "points": null,
-      "type": "GC",
-      "results": [
-      ]
-    },
-    {
       "id": "tour_of_slovenia_2021_s1",
       "name": "Tour of Slovenia Stage 1",
       "date": "2021-06-09",
@@ -30833,16 +30823,6 @@
         [97, "Reichenbach Sébastien"],
         [98, "Lastra Jonathan"],
         [99, "Harper Chris"]
-      ]
-    },
-    {
-      "id": "int_sterreich_rundfahrt_tour_of_austria_2021_gc",
-      "name": "Int. Österreich-Rundfahrt - Tour of Austria GC",
-      "date": null,
-      "category": "GC",
-      "points": null,
-      "type": "GC",
-      "results": [
       ]
     },
     {
