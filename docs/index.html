@@ -790,13 +790,17 @@ const state = {
 // ════════════════════════════════════════════════════════════════════════════
 // Data loading
 // ════════════════════════════════════════════════════════════════════════════
+
+// R2 public bucket URL — set this after you create the bucket.
+// For local development, change to './outputs/' instead.
+const DATA_BASE = 'https://pub-81a27de7fbbb4b5e8702070571320681.r2.dev';
+
 async function loadData() {
-  const base = './outputs/';
   const [meta, series, hist, hof] = await Promise.all([
-    fetch(base + 'meta.json').then(r => r.json()),
-    fetch(base + 'rider_timeseries.json').then(r => r.json()),
-    fetch(base + 'top_history.json').then(r => r.json()),
-    fetch(base + 'hall_of_fame.json').then(r => r.json()),
+    fetch(DATA_BASE + 'meta.json').then(r => r.json()),
+    fetch(DATA_BASE + 'rider_timeseries.json').then(r => r.json()),
+    fetch(DATA_BASE + 'top_history.json').then(r => r.json()),
+    fetch(DATA_BASE + 'hall_of_fame.json').then(r => r.json()),
   ]);
   return { meta, series, hist, hof };
 }
