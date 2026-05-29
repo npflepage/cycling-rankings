@@ -791,7 +791,7 @@ const state = {
 // Data loading
 // ════════════════════════════════════════════════════════════════════════════
 async function loadData() {
-  const base = './outputs/';
+  const base = 'https://github.com/npflepage/cycling-rankings/releases/download/latest-data/';
   const [meta, series, hist, hof] = await Promise.all([
     fetch(base + 'meta.json').then(r => r.json()),
     fetch(base + 'rider_timeseries.json').then(r => r.json()),
