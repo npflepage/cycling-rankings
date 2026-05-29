@@ -791,7 +791,7 @@ const state = {
 // Data loading
 // ════════════════════════════════════════════════════════════════════════════
 async function loadData() {
-  const base = 'https://objects.githubusercontent.com/github-production-release-asset-2e65be/';
+  const base = './outputs/';
   const [meta, series, hist, hof] = await Promise.all([
     fetch(base + 'meta.json').then(r => r.json()),
     fetch(base + 'rider_timeseries.json').then(r => r.json()),
