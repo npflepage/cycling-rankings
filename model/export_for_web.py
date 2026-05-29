@@ -140,6 +140,43 @@ class BTEngine:
     def display_score_from_pair(self, mu, sigma, z=0.0):
         return DISPLAY_BASE + DISPLAY_SCALE * ((mu - z * sigma) - self.mu_init)
 
+    def apply_inactivity_decay(self, reference_date, cap_at_init=True,
+                               years_to_cap=3.0):
+        """Catch-up sigma inflation for inactive riders.
+
+        The engine only applies time-decay lazily, when a rider *next* races.
+        Riders who stopped racing therefore keep a sigma frozen at their last
+        race, giving them an artificially high safe-Elo (mu - z*sigma) forever.
+
+        This walks every rider's last-known rating forward from their last race
+        in THIS track to `reference_date`, growing sigma LINEARLY toward the
+        sigma_init cap. We use a dedicated linear rate rather than the engine's
+        between-race tau_per_day, because that rate (tuned for active riders) is
+        far too slow — with the quadratic sigma**2 += tau**2*days rule it would
+        take centuries to materially inflate a retired rider.
+
+        `years_to_cap` sets how long of inactivity drives a typical active rider
+        (sigma ~= a few units) essentially all the way to the cap. mu is left
+        unchanged (no new information).
+
+        Mutates self.ratings in place. Call this AFTER all races are processed
+        and AFTER history/peaks are computed — it must not touch self.history.
+        """
+        # Linear growth rate (sigma units per day) that spans the full prior
+        # range over `years_to_cap` years of inactivity.
+        rate_per_day = self.sigma_init / (years_to_cap * 365.0)
+        for rider, last_date in self.last_race_date.items():
+            days = max((reference_date - last_date).days, 0)
+            if days == 0:
+                continue
+            r = self.ratings[rider]
+            new_sigma = r.sigma + rate_per_day * days
+            if cap_at_init:
+                new_sigma = min(new_sigma, self.sigma_init)
+            self.ratings[rider] = self.model.rating(
+                mu=r.mu, sigma=float(new_sigma), name=rider,
+            )
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # Multi-track — verbatim port
@@ -177,6 +214,23 @@ class BTEngineMultiTrack:
         for track, condition in BT_TRACKS.items():
             if condition(race):
                 self.engines[track].process_race(race)
+
+    def apply_inactivity_decay(self, cap_at_init=True, years_to_cap=3.0):
+        """Apply catch-up sigma inflation to every track's final ratings.
+
+        IMPORTANT: each track uses its OWN latest race as the reference "now",
+        i.e. the most recent race of that track type — NOT the latest race
+        across all tracks. A rider's sprint sigma is inflated relative to the
+        last sprint in the dataset; their mountain sigma relative to the last
+        mountain race; and so on. A climber who quit sprinting in 2019 but still
+        climbs in 2024 thus has an inflated sprint sigma and a fresh mountain one.
+        """
+        for track, eng in self.engines.items():
+            if not eng.last_race_date:
+                continue
+            reference_date = max(eng.last_race_date.values())
+            eng.apply_inactivity_decay(reference_date, cap_at_init=cap_at_init,
+                                       years_to_cap=years_to_cap)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -683,6 +737,13 @@ def main():
     parser.add_argument("--min-races", type=int, default=2)
     parser.add_argument("--downsample", type=int, default=1,
                         help="Snapshot every Nth race in top_history (1 = all)")
+    parser.add_argument("--relabel-iters", type=int, default=1,
+                        help="Number of relabel iterations to apply (default 1). "
+                             "One extra diagnostic-only pass always runs after.")
+    parser.add_argument("--decay-years-to-cap", type=float, default=3.0,
+                        help="Years of inactivity that inflate a rider's sigma "
+                             "to the sigma_init cap, dropping them out of current "
+                             "standings. Set to 0 to disable inactivity decay.")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -706,14 +767,32 @@ def main():
     for race in races:
         engine_mt.process_race(race)
 
-    print("\n🔍 Pass 1: detecting mislabeled sprint races ...")
-    suggestions = suggest_sprint_relabels(races, engine_mt,
-                                          min_races=args.min_races)
+    # Races we know are genuine sprints despite the heuristic flagging them.
+    # Format: (date, race_name) — must match exactly what's in the JSON data.
+    RELABEL_EXCLUSIONS = {
+        ("2020-09-04", "Tour de France Stage 7"),    # flat sprint to Lavaur, won by van Aert in a bunch
+        ("2015-05-03", "Tour de Romandie Stage 6"),  # ITT finale, Tony Martin
+        ("2017-06-12", "Tour de Suisse Stage 3"),    # sprint stage to Bern, Sagan/Matthews/Degenkolb
+        ("2017-07-18", "Tour de France Stage 16"),   # reduced bunch sprint to Romans-sur-Isère
+    }
 
-    if suggestions:
-        # Index races by (date, name) for fast lookup. There can be duplicates
-        # in theory (same race name on same date), but in practice this is fine
-        # and we only relabel races that we just emitted suggestions for.
+    n_iters = max(0, args.relabel_iters)
+    total_applied = 0
+
+    for iteration in range(n_iters):
+        pass_label = f"Pass {iteration + 1}/{n_iters}"
+        print(f"\n🔍 {pass_label}: detecting mislabeled sprint races ...")
+        suggestions = suggest_sprint_relabels(races, engine_mt,
+                                              min_races=args.min_races)
+
+        # Filter out known false positives
+        suggestions = [s for s in suggestions
+                       if (s["date"], s["name"]) not in RELABEL_EXCLUSIONS]
+
+        if not suggestions:
+            print(f"   No relabels to apply in {pass_label} — stopping early.")
+            break
+
         relabel_key = {(s["date"], s["name"]): s["suggested"] for s in suggestions}
         n_applied = 0
         for race in races:
@@ -721,14 +800,36 @@ def main():
             if key in relabel_key:
                 race["type"] = relabel_key[key]
                 n_applied += 1
-        print(f"\n✏️  Applied {n_applied} relabel(s). Re-running multi-track engine ...")
+        total_applied += n_applied
+        print(f"\n✏️  {pass_label}: applied {n_applied} relabel(s) "
+              f"({total_applied} total). Re-running multi-track engine ...")
 
         engine_mt = BTEngineMultiTrack()
         for race in races:
             engine_mt.process_race(race)
 
-        print("\n🔍 Pass 2: re-checking after relabel ...")
-        suggest_sprint_relabels(races, engine_mt, min_races=args.min_races)
+    # Always run one final diagnostic-only pass (results not applied to data).
+    diag_label = f"Pass {n_iters + 1} (diagnostic only — not applied)"
+    print(f"\n🔍 {diag_label} ...")
+    suggest_sprint_relabels(races, engine_mt, min_races=args.min_races)
+
+    # Inactivity decay: inflate sigma for riders who stopped racing, so retired
+    # riders fall out of the *current* safe-Elo standings. Applied per-track
+    # using each track's own latest race as the reference. This runs AFTER the
+    # relabel diagnostic (which must see un-inflated ratings) and AFTER history
+    # is recorded — compute_composite_history reads from snapshots, and the HoF
+    # peak logic reads history, so neither is affected; only the final/current
+    # standings exports see the inflated sigmas.
+    if args.decay_years_to_cap and args.decay_years_to_cap > 0:
+        print(f"⌛ Applying inactivity decay to current standings "
+              f"(cap reached after ~{args.decay_years_to_cap:g} yr inactive) ...")
+        engine.apply_inactivity_decay(
+            max(engine.last_race_date.values()),
+            years_to_cap=args.decay_years_to_cap)
+        engine_mt.apply_inactivity_decay(
+            cap_at_init=True, years_to_cap=args.decay_years_to_cap)
+    else:
+        print("⌛ Inactivity decay disabled (--decay-years-to-cap 0).")
 
     print("⚙️  Computing composite (cumulative) trajectory ...")
     comp_norm = compute_composite_history(engine_mt, safe=False,

@@ -24,7 +24,7 @@ jobs:
 
       - name: Run model and generate JSON exports
         run: |
-          uv run python model/export_for_web.py \
+          uv run python model/export_for_web.py --relabel-iters 4 \
             --data-dir ./data \
             --out-dir ./docs/outputs \
             --min-races 2
