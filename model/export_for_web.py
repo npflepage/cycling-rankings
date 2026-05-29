@@ -288,6 +288,106 @@ def load_all_races(data_dir: Path) -> list[dict]:
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# Sprint-relabel diagnostic
+# ════════════════════════════════════════════════════════════════════════════
+def suggest_sprint_relabels(races, engine_mt, *,
+                            top_k=20, min_races=2, margin=1.0, z_safe=2.0):
+    """For each race currently typed 'sprint', look at the top finishers and
+    decide whether their sprint / punch / mountain safe-Elos suggest the race
+    was actually a punch or mountain race that lost its PCS profile metadata.
+
+    Scoring per race:
+      - take top_k finishers
+      - for each, compute safe-Elo (mu - z_safe*sigma) in {sprint, punch, mountain}
+        using the *final* ratings from engine_mt (single-pass diagnostic)
+      - z-score each rider's safe-Elo *within that track's final field*
+        (riders qualified with >= min_races in that track)
+      - weight rider by 1/rank, sum z-scores per discipline
+      - propose relabel to argmax discipline if (winner_score - sprint_score) >= margin
+
+    Prints a table of proposed relabels. Does NOT modify `races`.
+    """
+    tracks = ["sprint", "punch", "mountain"]
+
+    # Build the per-track z-score lookup using *final* engine state.
+    track_z = {}
+    for t in tracks:
+        eng = engine_mt.engines[t]
+        qualified = {
+            r: (rt.mu - z_safe * rt.sigma)
+            for r, rt in eng.ratings.items()
+            if eng.race_counts.get(r, 0) >= min_races
+        }
+        if not qualified:
+            track_z[t] = {}
+            continue
+        vals = np.array(list(qualified.values()), dtype=float)
+        mean, std = float(vals.mean()), float(vals.std())
+        if std == 0.0:
+            track_z[t] = {r: 0.0 for r in qualified}
+        else:
+            track_z[t] = {r: (v - mean) / std for r, v in qualified.items()}
+
+    suggestions = []
+    for race in races:
+        if race.get("type") != "sprint":
+            continue
+
+        results = race.get("results", [])
+        # `results` is a list of [rank, rider]; take top_k by rank
+        top = sorted(results, key=lambda x: x[0])[:top_k]
+        if len(top) < 3:
+            continue
+
+        scores = {t: 0.0 for t in tracks}
+        contributing = {t: 0 for t in tracks}
+        for rank, rider in top:
+            w = 1.0 / float(rank)
+            for t in tracks:
+                if rider in track_z[t]:
+                    scores[t] += w * track_z[t][rider]
+                    contributing[t] += 1
+
+        # Skip races where almost no top rider qualifies anywhere — too noisy.
+        if max(contributing.values()) < 3:
+            continue
+
+        winner_disc = max(scores, key=scores.get)
+        if winner_disc == "sprint":
+            continue
+        if (scores[winner_disc] - scores["sprint"]) < margin:
+            continue
+
+        top3 = [rider for _, rider in top[:3]]
+        suggestions.append({
+            "date":        race["date"],
+            "name":        race.get("name", "?"),
+            "current":     "sprint",
+            "suggested":   winner_disc,
+            "top3":        top3,
+            "scores":      scores,
+            "gap":         scores[winner_disc] - scores["sprint"],
+        })
+
+    suggestions.sort(key=lambda s: -s["gap"])
+
+    print(f"\n🔍 Sprint-relabel suggestions "
+          f"(top_k={top_k}, margin={margin}, z_safe={z_safe})")
+    print(f"   found {len(suggestions)} candidate(s)\n")
+    if not suggestions:
+        return suggestions
+
+    print(f"   {'date':<12} {'→ new':<9} {'gap':>5}  race  |  top 3")
+    print(f"   {'-'*12} {'-'*9} {'-'*5}  " + "-"*60)
+    for s in suggestions:
+        top3_str = ", ".join(s["top3"])
+        print(f"   {s['date']:<12} {s['suggested']:<9} "
+              f"{s['gap']:>5.2f}  {s['name']}  |  {top3_str}")
+
+    return suggestions
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # Export helpers
 # ════════════════════════════════════════════════════════════════════════════
 def elo(mu, sigma, z=0.0):
@@ -605,6 +705,30 @@ def main():
     engine_mt = BTEngineMultiTrack()
     for race in races:
         engine_mt.process_race(race)
+
+    print("\n🔍 Pass 1: detecting mislabeled sprint races ...")
+    suggestions = suggest_sprint_relabels(races, engine_mt,
+                                          min_races=args.min_races)
+
+    if suggestions:
+        # Index races by (date, name) for fast lookup. There can be duplicates
+        # in theory (same race name on same date), but in practice this is fine
+        # and we only relabel races that we just emitted suggestions for.
+        relabel_key = {(s["date"], s["name"]): s["suggested"] for s in suggestions}
+        n_applied = 0
+        for race in races:
+            key = (race.get("date"), race.get("name"))
+            if key in relabel_key:
+                race["type"] = relabel_key[key]
+                n_applied += 1
+        print(f"\n✏️  Applied {n_applied} relabel(s). Re-running multi-track engine ...")
+
+        engine_mt = BTEngineMultiTrack()
+        for race in races:
+            engine_mt.process_race(race)
+
+        print("\n🔍 Pass 2: re-checking after relabel ...")
+        suggest_sprint_relabels(races, engine_mt, min_races=args.min_races)
 
     print("⚙️  Computing composite (cumulative) trajectory ...")
     comp_norm = compute_composite_history(engine_mt, safe=False,

@@ -29,11 +29,11 @@
     "GC": 1.75
   },
   "type_counts": {
-    "sprint": 1423,
-    "punch": 874,
+    "sprint": 1346,
+    "punch": 899,
     "GC": 393,
     "TT": 299,
-    "mountain": 798,
+    "mountain": 850,
     "cobbles": 80
   },
   "category_counts": {
@@ -42,16 +42,16 @@
     "classic": 610
   },
   "per_track_riders": {
-    "sprint": 5098,
+    "sprint": 5088,
     "TT": 2793,
     "cobbles": 877,
-    "punch": 2076,
-    "mountain": 3262,
+    "punch": 2088,
+    "mountain": 3294,
     "GC": 3384,
     "stage_race": 5133,
     "classics": 3227
   },
-  "generated_at": "2026-05-29T05:48:37.677653Z",
+  "generated_at": "2026-05-29T06:49:35.851249Z",
   "params": {
     "mu_init": 25.0,
     "sigma_init": 8.333333333333334,
