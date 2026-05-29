@@ -282,6 +282,7 @@ def load_all_races(data_dir: Path) -> list[dict]:
         with open(f, encoding="utf-8") as fh:
             data = json.load(fh)
         races.extend(data.get("races", []))
+    races = [r for r in races if r.get("date") is not None and r.get("points") is not None]
     races.sort(key=lambda r: r["date"])
     return races
 
