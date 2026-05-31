@@ -159,11 +159,10 @@ class BTEngine:
         (sigma ~= a few units) essentially all the way to the cap. mu is left
         unchanged (no new information).
 
-        Mutates self.ratings in place. Call this AFTER all races are processed
-        and AFTER history/peaks are computed — it must not touch self.history.
+        Mutates self.ratings in place, then appends a synthetic snapshot to
+        self.history so that all exports (top_history, timeseries, hall_of_fame)
+        see the decayed ratings as the current/final state.
         """
-        # Linear growth rate (sigma units per day) that spans the full prior
-        # range over `years_to_cap` years of inactivity.
         rate_per_day = self.sigma_init / (years_to_cap * 365.0)
         for rider, last_date in self.last_race_date.items():
             days = max((reference_date - last_date).days, 0)
@@ -176,6 +175,22 @@ class BTEngine:
             self.ratings[rider] = self.model.rating(
                 mu=r.mu, sigma=float(new_sigma), name=rider,
             )
+
+        # Append a synthetic snapshot so exports see the decayed ratings.
+        # deltas is empty (no race happened); race counts are unchanged so
+        # min_races filtering continues to work correctly.
+        self.history.append({
+            "race_id":   None,
+            "race_name": "Current standings (inactivity decay applied)",
+            "date":      reference_date.strftime("%Y-%m-%d"),
+            "category":  None,
+            "type":      None,
+            "points":    None,
+            "n_riders":  0,
+            "race_tau":  None,
+            "deltas":    {},
+            "ratings":   {r: (rt.mu, rt.sigma) for r, rt in self.ratings.items()},
+        })
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -816,10 +831,9 @@ def main():
     # Inactivity decay: inflate sigma for riders who stopped racing, so retired
     # riders fall out of the *current* safe-Elo standings. Applied per-track
     # using each track's own latest race as the reference. This runs AFTER the
-    # relabel diagnostic (which must see un-inflated ratings) and AFTER history
-    # is recorded — compute_composite_history reads from snapshots, and the HoF
-    # peak logic reads history, so neither is affected; only the final/current
-    # standings exports see the inflated sigmas.
+    # relabel diagnostic (which must see un-inflated ratings). Each call appends
+    # a synthetic snapshot so that compute_composite_history and all exports see
+    # the decayed ratings as the final/current state.
     if args.decay_years_to_cap and args.decay_years_to_cap > 0:
         print(f"⌛ Applying inactivity decay to current standings "
               f"(cap reached after ~{args.decay_years_to_cap:g} yr inactive) ...")
