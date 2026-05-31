@@ -180,16 +180,17 @@ class BTEngine:
         # deltas is empty (no race happened); race counts are unchanged so
         # min_races filtering continues to work correctly.
         self.history.append({
-            "race_id":   None,
-            "race_name": "Current standings (inactivity decay applied)",
-            "date":      reference_date.strftime("%Y-%m-%d"),
-            "category":  None,
-            "type":      None,
-            "points":    None,
-            "n_riders":  0,
-            "race_tau":  None,
-            "deltas":    {},
-            "ratings":   {r: (rt.mu, rt.sigma) for r, rt in self.ratings.items()},
+            "race_id":          None,
+            "race_name":        "Current standings (inactivity decay applied)",
+            "date":             reference_date.strftime("%Y-%m-%d"),
+            "category":         None,
+            "type":             None,
+            "points":           None,
+            "n_riders":         0,
+            "race_tau":         None,
+            "deltas":           {},
+            "ratings":          {r: (rt.mu, rt.sigma) for r, rt in self.ratings.items()},
+            "is_decay_snapshot": True,
         })
 
 
@@ -330,13 +331,14 @@ def compute_composite_history(engine_mt, tracks=COMPOSITE_TRACKS,
             qual_races[rider] = total_races
 
         history.append({
-            "idx":        global_idx,
-            "date":       date,
-            "race_name":  snap["race_name"],
-            "track":      track,
-            "raced":      raced_here,
-            "qual_races": qual_races,
-            "composites": composites,
+            "idx":               global_idx,
+            "date":              date,
+            "race_name":         snap["race_name"],
+            "track":             track,
+            "raced":             raced_here,
+            "qual_races":        qual_races,
+            "composites":        composites,
+            "is_decay_snapshot": snap.get("is_decay_snapshot", False),
         })
 
     return history
@@ -523,7 +525,15 @@ def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
         for snap in eng.history:
             if rider in snap["ratings"]:
                 last = snap["ratings"][rider]
-            if rider in snap["deltas"] and last is not None:
+            if snap.get("is_decay_snapshot"):
+                # Extend every rider's plot to the decay reference date, showing
+                # the inflated sigma even if they haven't raced recently.
+                if last is not None and (not traj or traj[-1]["d"] != snap["date"]):
+                    mu, sg = last
+                    traj.append({"d": snap["date"],
+                                 "m": round(float(mu), 5),
+                                 "s": round(float(sg), 5)})
+            elif rider in snap["deltas"] and last is not None:
                 mu, sg = last
                 traj.append({"d": snap["date"],
                              "m": round(float(mu), 5),
@@ -535,14 +545,27 @@ def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
     safe_by_idx = {h["idx"]: h["composites"] for h in comp_safe}
     for h in comp_norm:
         s_comp = safe_by_idx.get(h["idx"], {})
-        for rider in h["raced"]:
-            if rider not in h["composites"]:
-                continue
-            comp_series.setdefault(rider, []).append({
-                "d":  h["date"],
-                "v":  round(float(h["composites"][rider]), 5),
-                "vs": round(float(s_comp.get(rider, h["composites"][rider])), 5),
-            })
+        if h.get("is_decay_snapshot"):
+            # Extend existing composite series to the decay date for all riders
+            # that already have composite history (don't create new series here).
+            for rider, v in h["composites"].items():
+                if rider not in comp_series:
+                    continue
+                if comp_series[rider][-1]["d"] != h["date"]:
+                    comp_series[rider].append({
+                        "d":  h["date"],
+                        "v":  round(float(v), 5),
+                        "vs": round(float(s_comp.get(rider, v)), 5),
+                    })
+        else:
+            for rider in h["raced"]:
+                if rider not in h["composites"]:
+                    continue
+                comp_series.setdefault(rider, []).append({
+                    "d":  h["date"],
+                    "v":  round(float(h["composites"][rider]), 5),
+                    "vs": round(float(s_comp.get(rider, h["composites"][rider])), 5),
+                })
 
     out = {}
     for rider in sorted(qualifying):
