@@ -32,12 +32,34 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 
 from openskill.models import BradleyTerryPart
+
+try:
+    import orjson as _orjson
+except ImportError:
+    _orjson = None
+
+
+def _write_json(obj, path, indent=False):
+    """Write obj to path as JSON. Uses orjson if available (~10× faster)."""
+    if _orjson is not None:
+        # OPT_NON_STR_KEYS matches stdlib behaviour: None/int keys become strings.
+        opt = _orjson.OPT_NON_STR_KEYS
+        if indent:
+            opt |= _orjson.OPT_INDENT_2
+        with open(path, "wb") as f:
+            f.write(_orjson.dumps(obj, option=opt))
+    else:
+        with open(path, "w") as f:
+            if indent:
+                json.dump(obj, f, indent=2)
+            else:
+                json.dump(obj, f, separators=(",", ":"))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -252,96 +274,140 @@ class BTEngineMultiTrack:
 # ════════════════════════════════════════════════════════════════════════════
 # Composite trajectory — cross-discipline z-score over time
 # ════════════════════════════════════════════════════════════════════════════
-def compute_composite_history(engine_mt, tracks=COMPOSITE_TRACKS,
-                              weights=COMPOSITE_WEIGHTS,
-                              safe=False, min_races=2):
-    """Reconstruct the composite score for every rider at each point on a
-    unified timeline (the union of all per-track snapshots, ordered by date).
+def compute_composite_history_both(engine_mt, tracks=COMPOSITE_TRACKS,
+                                    weights=COMPOSITE_WEIGHTS, min_races=2):
+    """Vectorised: compute both z=0 (norm) and z=2 (safe) composite histories
+    in a single pass over the unified timeline.
+
+    Returns (hist_norm, hist_safe) — same format as two calls to the old
+    compute_composite_history() but ~100× faster:
+      * per-rider × per-track Python loops replaced by T×N numpy operations
+      * both z values computed simultaneously, halving the pass count
 
     Recipe at every global snapshot:
-      - effective skill r = mu - z*sigma   (z = 2 in safe mode, else 0)
-      - z-score r against that track's *current* field of qualifiers
-      - weight by (1/sigma) * track_weight  (GC weighted up)
-      - average the weighted z-scores over the tracks the rider qualifies in
-
-    Returns a date-ordered list of events:
-      {idx, date, race_name, track, raced:set, qual_races:{r:int},
-       composites:{rider: value}}
+      - effective skill  eff_norm = mu,  eff_safe = mu - 2σ
+      - z-score against that track's current field of qualifiers
+      - weight by (1/σ) × track_weight (GC up-weighted)
+      - weighted average across the tracks the rider qualifies in
     """
-    z = 2.0 if safe else 0.0
+    # ── Pre-index all riders that ever appear across composite tracks ─────────
+    all_riders = sorted({r for t in tracks for r in engine_mt.engines[t].ratings})
+    rider_idx  = {r: i for i, r in enumerate(all_riders)}
+    N          = len(all_riders)
+    T          = len(tracks)
+    track_idx  = {t: i for i, t in enumerate(tracks)}
+    w_arr      = np.array([weights.get(t, 1.0) for t in tracks])  # [T]
 
+    # State arrays — updated incrementally as events are processed.
+    mu_mat    = np.full((T, N), np.nan)     # [T, N]
+    sigma_mat = np.full((T, N), np.nan)     # [T, N]
+    count_mat = np.zeros((T, N), np.int32)  # [T, N]
+
+    # ── Build & sort unified event list ──────────────────────────────────────
     events = []
-    for track in tracks:
-        eng = engine_mt.engines[track]
-        for i, snap in enumerate(eng.history):
-            events.append((snap["date"], track, i))
+    for t in tracks:
+        for snap_i, snap in enumerate(engine_mt.engines[t].history):
+            events.append((snap["date"], t, snap_i))
     events.sort(key=lambda e: e[0])
 
-    cur_ratings   = {t: {} for t in tracks}   # {track: {rider: (mu, sigma)}}
-    cur_racecount = {t: {} for t in tracks}   # {track: {rider: int}}
-    history = []
+    hist_norm, hist_safe = [], []
 
     for global_idx, (date, track, snap_i) in enumerate(events):
-        eng  = engine_mt.engines[track]
-        snap = eng.history[snap_i]
-        raced_here = set(snap["deltas"].keys())
+        ti   = track_idx[track]
+        snap = engine_mt.engines[track].history[snap_i]
 
+        # ── Incremental update: only touched rows change ──────────────────────
         for rider in snap["deltas"]:
-            cur_racecount[track][rider] = cur_racecount[track].get(rider, 0) + 1
-        for rider, (mu, sigma) in snap["ratings"].items():
-            cur_ratings[track][rider] = (mu, sigma)
+            count_mat[ti, rider_idx[rider]] += 1
 
-        # ── per-track field stats on the effective (safe-aware) skill ──
-        track_stats = {}
-        for t in tracks:
-            effs = [mu - z * sg
-                    for r, (mu, sg) in cur_ratings[t].items()
-                    if cur_racecount[t].get(r, 0) >= min_races]
-            track_stats[t] = ((float(np.mean(effs)), float(np.std(effs)))
-                              if len(effs) >= 2 else None)
+        if snap.get("is_decay_snapshot"):
+            # Decay inflates sigma for every rider in this track.
+            for rider, (mu, sg) in snap["ratings"].items():
+                ri = rider_idx[rider]
+                mu_mat[ti, ri]    = mu
+                sigma_mat[ti, ri] = sg
+        else:
+            # Only riders who actually raced have new ratings.
+            for rider in snap["deltas"]:
+                mu, sg = snap["ratings"][rider]
+                ri = rider_idx[rider]
+                mu_mat[ti, ri]    = mu
+                sigma_mat[ti, ri] = sg
 
-        all_riders = set(r for t in tracks for r in cur_ratings[t])
-        composites = {}
-        qual_races = {}
-        for rider in all_riders:
-            ws = wt = 0.0
-            cats = 0
-            total_races = 0
-            for t in tracks:
-                if rider not in cur_ratings[t]:
-                    continue
-                n = cur_racecount[t].get(rider, 0)
-                if n < min_races or track_stats[t] is None:
-                    continue
-                mu, sigma = cur_ratings[t][rider]
-                if sigma == 0:
-                    continue
-                t_mean, t_std = track_stats[t]
-                if t_std == 0:
-                    continue
-                eff = mu - z * sigma
-                w = (1.0 / sigma) * weights.get(t, 1.0)
-                ws += w * ((eff - t_mean) / t_std)
-                wt += w
-                cats += 1
-                total_races += n
-            if cats == 0 or wt == 0:
-                continue
-            composites[rider] = ws / wt
-            qual_races[rider] = total_races
+        # ── Qualifying mask [T, N] ────────────────────────────────────────────
+        qual = (count_mat >= min_races) & ~np.isnan(sigma_mat) & (sigma_mat > 0)
 
-        history.append({
-            "idx":               global_idx,
-            "date":              date,
-            "race_name":         snap["race_name"],
-            "track":             track,
-            "raced":             raced_here,
-            "qual_races":        qual_races,
-            "composites":        composites,
-            "is_decay_snapshot": snap.get("is_decay_snapshot", False),
+        # ── Effective ratings [T, N] ──────────────────────────────────────────
+        eff_n = mu_mat                    # z=0
+        eff_s = mu_mat - 2.0 * sigma_mat  # z=2
+
+        # ── Per-track mean/std (population) over qualifying riders ────────────
+        cnt_t   = qual.sum(axis=1).astype(float)           # [T]
+        enough  = cnt_t >= 2                                # [T] bool
+        c_safe  = np.where(enough, cnt_t, 1.0)             # avoid /0
+
+        sum_n   = np.where(qual, eff_n, 0.0).sum(axis=1)   # [T]
+        sum_s   = np.where(qual, eff_s, 0.0).sum(axis=1)
+        mean_n  = np.where(enough, sum_n / c_safe, np.nan)  # [T]
+        mean_s  = np.where(enough, sum_s / c_safe, np.nan)
+
+        d_n = np.where(qual, eff_n - mean_n[:, None], 0.0)  # [T, N]
+        d_s = np.where(qual, eff_s - mean_s[:, None], 0.0)
+        std_n = np.where(enough, np.sqrt((d_n**2).sum(axis=1) / c_safe), np.nan)
+        std_s = np.where(enough, np.sqrt((d_s**2).sum(axis=1) / c_safe), np.nan)
+
+        # ── Valid [T, N]: qualifies AND track std > 0 ─────────────────────────
+        v_n = qual & (std_n[:, None] > 0) & ~np.isnan(std_n[:, None])
+        v_s = qual & (std_s[:, None] > 0) & ~np.isnan(std_s[:, None])
+
+        # ── Weights and z-scores [T, N] ───────────────────────────────────────
+        w_n = np.where(v_n, (1.0 / sigma_mat) * w_arr[:, None], 0.0)
+        w_s = np.where(v_s, (1.0 / sigma_mat) * w_arr[:, None], 0.0)
+        z_n = np.where(v_n, (eff_n - mean_n[:, None]) / std_n[:, None], 0.0)
+        z_s = np.where(v_s, (eff_s - mean_s[:, None]) / std_s[:, None], 0.0)
+
+        # ── Weighted composite per rider [N] ──────────────────────────────────
+        ws_n = (w_n * z_n).sum(axis=0)
+        wt_n = w_n.sum(axis=0)
+        ws_s = (w_s * z_s).sum(axis=0)
+        wt_s = w_s.sum(axis=0)
+
+        ok_n = (v_n.sum(axis=0) > 0) & (wt_n > 0)  # [N] bool
+        ok_s = (v_s.sum(axis=0) > 0) & (wt_s > 0)
+
+        # qual_races = sum of race counts across valid tracks per rider
+        qr_n = (count_mat * v_n).sum(axis=0)  # [N]
+        qr_s = (count_mat * v_s).sum(axis=0)
+
+        # ── Build output dicts (only qualifying riders) ───────────────────────
+        idx_n = ok_n.nonzero()[0]
+        idx_s = ok_s.nonzero()[0]
+
+        cv_n = (ws_n / np.where(wt_n > 0, wt_n, 1.0))[idx_n]
+        cv_s = (ws_s / np.where(wt_s > 0, wt_s, 1.0))[idx_s]
+
+        comp_n  = {all_riders[i]: float(v) for i, v in zip(idx_n.tolist(), cv_n.tolist())}
+        comp_s  = {all_riders[i]: float(v) for i, v in zip(idx_s.tolist(), cv_s.tolist())}
+        qrace_n = {all_riders[i]: int(qr_n[i]) for i in idx_n.tolist()}
+        qrace_s = {all_riders[i]: int(qr_s[i]) for i in idx_s.tolist()}
+
+        raced_here = set(snap["deltas"].keys())
+        is_decay   = snap.get("is_decay_snapshot", False)
+
+        hist_norm.append({
+            "idx": global_idx, "date": date,
+            "race_name": snap["race_name"], "track": track,
+            "raced": raced_here, "qual_races": qrace_n,
+            "composites": comp_n, "is_decay_snapshot": is_decay,
+        })
+        hist_safe.append({
+            "idx": global_idx, "date": date,
+            "race_name": snap["race_name"], "track": track,
+            "raced": raced_here, "qual_races": qrace_s,
+            "composites": comp_s, "is_decay_snapshot": is_decay,
         })
 
-    return history
+    return hist_norm, hist_safe
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -488,7 +554,7 @@ def export_meta(races, engine, engine_mt, out_dir, min_races):
         "type_counts":       dict(type_counts),
         "category_counts":   dict(cat_counts),
         "per_track_riders":  per_track_riders,
-        "generated_at":      datetime.utcnow().isoformat() + "Z",
+        "generated_at":      datetime.now(timezone.utc).isoformat(),
         "params": {
             "mu_init": MU_INIT, "sigma_init": SIGMA_INIT,
             "beta": BETA, "tau_base": TAU_BASE,
@@ -496,9 +562,45 @@ def export_meta(races, engine, engine_mt, out_dir, min_races):
             "display_base": DISPLAY_BASE, "display_scale": DISPLAY_SCALE,
         },
     }
-    with open(out_dir / "meta.json", "w") as f:
-        json.dump(meta, f, indent=2)
+    _write_json(meta, out_dir / "meta.json", indent=True)
     print(f"  ✓ meta.json  ({len(races)} races, {len(engine.ratings)} riders)")
+
+
+def build_trajectories(eng):
+    """Single-pass build of {rider: [{d,m,s}...]} for all riders in one engine.
+
+    Replaces the old per-rider trajectory() scan: complexity drops from
+    O(riders × snapshots) to O(sum of field sizes across all snapshots).
+    Only riders in snap["deltas"] have changed ratings between non-decay
+    snapshots, so we update last_known lazily rather than scanning all ratings.
+    """
+    traj       = {}   # rider -> list of datapoints
+    last_known = {}   # rider -> (mu, sigma)
+
+    for snap in eng.history:
+        if snap.get("is_decay_snapshot"):
+            # Decay modifies sigma for every rider — capture the full state.
+            date = snap["date"]
+            for rider, (mu, sg) in snap["ratings"].items():
+                last_known[rider] = (mu, sg)
+                series = traj.get(rider)
+                if series is None:
+                    traj[rider] = [{"d": date,
+                                    "m": round(float(mu), 5),
+                                    "s": round(float(sg), 5)}]
+                elif series[-1]["d"] != date:
+                    series.append({"d": date,
+                                   "m": round(float(mu), 5),
+                                   "s": round(float(sg), 5)})
+        else:
+            date = snap["date"]
+            for rider in snap["deltas"]:
+                mu, sg = snap["ratings"][rider]
+                last_known[rider] = (mu, sg)
+                traj.setdefault(rider, []).append({"d": date,
+                                                   "m": round(float(mu), 5),
+                                                   "s": round(float(sg), 5)})
+    return traj
 
 
 def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
@@ -520,25 +622,10 @@ def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
             if n >= min_races:
                 qualifying.add(r)
 
-    def trajectory(eng, rider):
-        traj, last = [], None
-        for snap in eng.history:
-            if rider in snap["ratings"]:
-                last = snap["ratings"][rider]
-            if snap.get("is_decay_snapshot"):
-                # Extend every rider's plot to the decay reference date, showing
-                # the inflated sigma even if they haven't raced recently.
-                if last is not None and (not traj or traj[-1]["d"] != snap["date"]):
-                    mu, sg = last
-                    traj.append({"d": snap["date"],
-                                 "m": round(float(mu), 5),
-                                 "s": round(float(sg), 5)})
-            elif rider in snap["deltas"] and last is not None:
-                mu, sg = last
-                traj.append({"d": snap["date"],
-                             "m": round(float(mu), 5),
-                             "s": round(float(sg), 5)})
-        return traj
+    # One pass per engine instead of one pass per (rider × engine).
+    all_trajs = {"ALL": build_trajectories(engine)}
+    for track in engine_mt.tracks:
+        all_trajs[track] = build_trajectories(engine_mt.engines[track])
 
     # composite series, keyed by rider, aligned by event index
     comp_series = {}
@@ -546,8 +633,6 @@ def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
     for h in comp_norm:
         s_comp = safe_by_idx.get(h["idx"], {})
         if h.get("is_decay_snapshot"):
-            # Extend existing composite series to the decay date for all riders
-            # that already have composite history (don't create new series here).
             for rider, v in h["composites"].items():
                 if rider not in comp_series:
                     continue
@@ -569,17 +654,16 @@ def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
 
     out = {}
     for rider in sorted(qualifying):
-        rec = {"ALL": trajectory(engine, rider)}
+        rec = {"ALL": all_trajs["ALL"].get(rider, [])}
         for track in engine_mt.tracks:
-            eng = engine_mt.engines[track]
-            if rider in eng.ratings:
-                rec[track] = trajectory(eng, rider)
+            traj = all_trajs[track].get(rider)
+            if traj:
+                rec[track] = traj
         if rider in comp_series:
             rec["composite"] = comp_series[rider]
         out[rider] = rec
 
-    with open(out_dir / "rider_timeseries.json", "w") as f:
-        json.dump(out, f, separators=(",", ":"))
+    _write_json(out, out_dir / "rider_timeseries.json")
     print(f"  ✓ rider_timeseries.json  ({len(out)} riders)")
 
 
@@ -653,8 +737,7 @@ def export_top_history(engine, engine_mt, comp_norm, comp_safe,
         out[track] = history_for(engine_mt.engines[track])
     out["composite"] = composite_history()
 
-    with open(out_dir / "top_history.json", "w") as f:
-        json.dump(out, f, separators=(",", ":"))
+    _write_json(out, out_dir / "top_history.json")
     print(f"  ✓ top_history.json  ({len(out)} engines)")
 
 
@@ -760,8 +843,7 @@ def export_hall_of_fame(engine, engine_mt, comp_norm, comp_safe,
         out[track] = hof_for_engine(engine_mt.engines[track])
     out["composite"] = hof_composite()
 
-    with open(out_dir / "hall_of_fame.json", "w") as f:
-        json.dump(out, f, separators=(",", ":"))
+    _write_json(out, out_dir / "hall_of_fame.json")
     print(f"  ✓ hall_of_fame.json  ({len(out)} engines)")
 
 
@@ -869,10 +951,8 @@ def main():
         print("⌛ Inactivity decay disabled (--decay-years-to-cap 0).")
 
     print("⚙️  Computing composite (cumulative) trajectory ...")
-    comp_norm = compute_composite_history(engine_mt, safe=False,
-                                          min_races=args.min_races)
-    comp_safe = compute_composite_history(engine_mt, safe=True,
-                                          min_races=args.min_races)
+    comp_norm, comp_safe = compute_composite_history_both(
+        engine_mt, min_races=args.min_races)
 
     print(f"💾 Writing exports to {out_dir}/ ...")
     export_meta(races, engine, engine_mt, out_dir, args.min_races)

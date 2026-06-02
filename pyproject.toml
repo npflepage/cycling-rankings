@@ -7,4 +7,5 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.4.4",
     "openskill>=6.2.0",
+    "orjson>=3.9",
 ]
