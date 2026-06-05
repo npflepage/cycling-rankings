@@ -10,3 +10,6 @@ wheels/
 # Virtual environments
 .venv
 docs/outputs/*
+
+# Local secrets — never commit
+.env.r2

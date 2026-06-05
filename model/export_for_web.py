@@ -22,6 +22,20 @@ Design note — what is precomputed vs. computed in the browser:
     (b) run the head-to-head win-probability calculator *online* for any
     pair of riders without us having to precompute the O(n^2) matrix.
 
+Race-importance K-scaling (replaces the old tau-based points weighting):
+
+  After openskill computes the raw BT update, we intercept the (mu, sigma)
+  deltas and re-scale them by a per-race importance factor K = points / K_ANCHOR:
+
+    Δμ_i        ← K        · Ω_i · (S_i − P_i)   [full K on skill update]
+    Δσ²_i       ← sqrt(K)  · Ω_i · σ²_i · γ_i    [dampened K on uncertainty]
+
+  K = 1 at the anchor race (a Vuelta/Giro stage, 80 pts), so the bulk of
+  World-Tour racing is unchanged.  Monuments / GC wins push K > 1; minor
+  tour stages push K < 1.  sqrt(K) on σ reflects that big races are higher-
+  quality evidence, but with less aggressive compounding than full K would
+  produce.  tau is now constant (no longer scaled by points).
+
 Usage:
   pip install openskill numpy
   python model/export_for_web.py --data-dir ./data --out-dir ./docs/outputs
@@ -69,10 +83,15 @@ MU_INIT      = 25.0
 SIGMA_INIT   = 25.0 / 3.0
 BETA         = 25.0 / 6.0
 KAPPA        = 1e-4
-TAU_BASE     = 25.0 / 300.0
+TAU_BASE     = 25.0 / 1875.0  # anchored at K_ANCHOR (80 pts): matches old effective
+                               # tau for a Vuelta/Giro stage (was 25/300 × 80/500)
 WINDOW_SIZE  = 16
 TAU_PER_DAY  = 0.02
-USE_POINTS_WEIGHTING = True
+
+# Race-importance scaling anchor.  A race worth exactly K_ANCHOR points gets
+# K = 1 (pure BT, no scaling).  Races above/below scale proportionally.
+# 80 pts ≈ a Vuelta / Giro stage — the neutral reference point.
+K_ANCHOR = 80.0
 
 DISPLAY_BASE  = 1500
 DISPLAY_SCALE = 60
@@ -85,18 +104,18 @@ class BTEngine:
     def __init__(self, mu_init=MU_INIT, sigma_init=SIGMA_INIT,
                  beta=BETA, kappa=KAPPA, tau_base=TAU_BASE,
                  window_size=WINDOW_SIZE, tau_per_day=TAU_PER_DAY,
-                 use_points_weighting=USE_POINTS_WEIGHTING):
+                 k_anchor=K_ANCHOR):
         self.model = BradleyTerryPart(
             mu=mu_init, sigma=sigma_init,
             beta=beta, kappa=kappa, tau=tau_base,
             window_size=window_size, limit_sigma=False,
         )
-        self.mu_init = mu_init
+        self.mu_init    = mu_init
         self.sigma_init = sigma_init
-        self.tau_base = tau_base
+        self.tau_base   = tau_base
         self.tau_per_day = tau_per_day
-        self.use_points_weighting = use_points_weighting
-        self.ratings = {}
+        self.k_anchor   = k_anchor
+        self.ratings     = {}
         self.race_counts = {}
         self.last_race_date = {}
         self.history = []
@@ -116,14 +135,24 @@ class BTEngine:
                     mu=r.mu, sigma=float(np.sqrt(new_sigma_sq)), name=rider,
                 )
 
-    def _race_tau(self, points):
-        if not self.use_points_weighting:
-            return self.tau_base
-        return self.tau_base * float(max(points, 1) / 500.0)
+    def _race_k(self, points):
+        """Race-importance factor K = points / K_ANCHOR.
+
+        K = 1 for the anchor race (80 pts, a Vuelta/Giro stage).
+        K > 1 for monuments, Grand Tour GC wins, Worlds, Olympics.
+        K < 1 for minor tour stages and smaller races.
+
+        Applied as:
+          Δμ  scaled by K          (full importance on skill update)
+          Δσ² scaled by sqrt(K)    (dampened — big races are better evidence
+                                    but we don't want aggressive σ collapse)
+        tau is constant — no longer mixed with race importance.
+        """
+        return float(max(points, 1)) / self.k_anchor
 
     def process_race(self, race):
-        results = race["results"]
-        points = race.get("points", 100)
+        results   = race["results"]
+        points    = race.get("points", self.k_anchor)
         race_date = datetime.fromisoformat(race["date"])
 
         for _, rider in results:
@@ -131,17 +160,41 @@ class BTEngine:
             self._apply_time_decay(rider, race_date)
 
         riders = [r[1] for r in results]
-        ranks = [r[0] for r in results]
-        teams = [[self.ratings[r]] for r in riders]
-        race_tau = self._race_tau(points)
-        new_teams = self.model.rate(teams, ranks=ranks, tau=race_tau)
+        ranks  = [r[0] for r in results]
+        teams  = [[self.ratings[r]] for r in riders]
+
+        # BT requires at least 2 riders — skip degenerate races silently
+        if len(teams) < 2:
+            return {}
+
+        # tau is now constant — importance is handled by K, not tau
+        new_teams = self.model.rate(teams, ranks=ranks, tau=self.tau_base)
+
+        k      = self._race_k(points)
+        sqrt_k = float(np.sqrt(k))
 
         deltas = {}
         for rider, new_team in zip(riders, new_teams):
             old = self.ratings[rider]
             new = new_team[0]
-            deltas[rider] = round(new.mu - old.mu, 4)
-            self.ratings[rider] = new
+
+            # Raw openskill deltas
+            d_mu   = new.mu - old.mu
+            d_sig2 = new.sigma ** 2 - old.sigma ** 2   # always <= 0 (shrink)
+
+            # Apply K-scaling:
+            #   μ  moves by full K  — race importance directly scales skill transfer
+            #   σ² shrinks by √K   — big races are better evidence, but damped
+            scaled_mu   = old.mu + k * d_mu
+            scaled_sig2 = old.sigma ** 2 + sqrt_k * d_sig2
+
+            # Guard against numerical underflow (kappa is the model's sigma floor)
+            scaled_sigma = float(np.sqrt(max(scaled_sig2, self.model.kappa)))
+
+            self.ratings[rider] = self.model.rating(
+                mu=scaled_mu, sigma=scaled_sigma, name=rider,
+            )
+            deltas[rider] = round(k * d_mu, 4)   # log the K-scaled delta
             self.race_counts[rider] += 1
             self.last_race_date[rider] = race_date
 
@@ -153,7 +206,8 @@ class BTEngine:
             "type":      race.get("type"),
             "points":    points,
             "n_riders":  len(results),
-            "race_tau":  race_tau,
+            "race_tau":  self.tau_base,   # constant now; kept for schema compat
+            "k":         round(k, 4),
             "deltas":    deltas,
             "ratings":   {r: (rt.mu, rt.sigma) for r, rt in self.ratings.items()},
         })
@@ -210,6 +264,7 @@ class BTEngine:
             "points":           None,
             "n_riders":         0,
             "race_tau":         None,
+            "k":                None,
             "deltas":           {},
             "ratings":          {r: (rt.mu, rt.sigma) for r, rt in self.ratings.items()},
             "is_decay_snapshot": True,
@@ -559,6 +614,7 @@ def export_meta(races, engine, engine_mt, out_dir, min_races):
             "mu_init": MU_INIT, "sigma_init": SIGMA_INIT,
             "beta": BETA, "tau_base": TAU_BASE,
             "tau_per_day": TAU_PER_DAY, "window_size": WINDOW_SIZE,
+            "k_anchor": K_ANCHOR,
             "display_base": DISPLAY_BASE, "display_scale": DISPLAY_SCALE,
         },
     }
