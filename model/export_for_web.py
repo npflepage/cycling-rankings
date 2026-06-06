@@ -46,7 +46,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -95,6 +95,20 @@ K_ANCHOR = 80.0
 
 DISPLAY_BASE  = 1500
 DISPLAY_SCALE = 60
+
+# A rider only counts toward the "#1 club" (the reign bar / club plot) while
+# active. If they haven't raced in this track for more than ACTIVE_DAYS_FOR_NO1
+# days as of a given snapshot, they are NOT eligible to be #1 at that snapshot —
+# a retired-at-his-prime rider stops accruing reign time the moment he goes
+# stale, and only re-qualifies once he races again and is back on top. This is
+# independent of the sigma inactivity-decay (which only affects the safe metric).
+ACTIVE_DAYS_FOR_NO1 = 365
+
+# The composite ("cumulative") z-score is only meaningful once each track's
+# field is mature enough to give a stable mean/std. We therefore suppress the
+# composite output for the first COMPOSITE_WARMUP_DAYS of the dataset (state is
+# still accumulated during this window — we just don't emit snapshots yet).
+COMPOSITE_WARMUP_DAYS = 365
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -291,10 +305,10 @@ BT_TRACKS = {
 # tracks the user asked for and drop the category aggregates that would
 # double-count.  GC is up-weighted: holding form across a 3-week tour is a
 # stronger signal of all-round quality than picking up isolated stage wins.
-COMPOSITE_TRACKS  = ["cobbles", "punch", "mountain", "sprint", "GC"]
+COMPOSITE_TRACKS  = ["cobbles", "punch", "mountain", "sprint", "GC", "TT"]
 COMPOSITE_WEIGHTS = {
     "cobbles": 1.0, "punch": 1.0, "mountain": 1.0, "sprint": 1.0,
-    "GC": 1.75,
+    "GC": 1.0, "TT": 1.0,
 }
 
 
@@ -330,7 +344,8 @@ class BTEngineMultiTrack:
 # Composite trajectory — cross-discipline z-score over time
 # ════════════════════════════════════════════════════════════════════════════
 def compute_composite_history_both(engine_mt, tracks=COMPOSITE_TRACKS,
-                                    weights=COMPOSITE_WEIGHTS, min_races=2):
+                                    weights=COMPOSITE_WEIGHTS, min_races=2,
+                                    warmup_days=COMPOSITE_WARMUP_DAYS):
     """Vectorised: compute both z=0 (norm) and z=2 (safe) composite histories
     in a single pass over the unified timeline.
 
@@ -364,6 +379,14 @@ def compute_composite_history_both(engine_mt, tracks=COMPOSITE_TRACKS,
         for snap_i, snap in enumerate(engine_mt.engines[t].history):
             events.append((snap["date"], t, snap_i))
     events.sort(key=lambda e: e[0])
+
+    # Composite warm-up: accumulate state from the first event, but don't emit
+    # snapshots until `warmup_days` after the dataset starts, so the z-score
+    # field is mature. Decay snapshots (end of timeline) always pass this gate.
+    warmup_cutoff = None
+    if events and warmup_days:
+        first_date = datetime.fromisoformat(events[0][0])
+        warmup_cutoff = first_date + timedelta(days=warmup_days)
 
     hist_norm, hist_safe = [], []
 
@@ -448,6 +471,12 @@ def compute_composite_history_both(engine_mt, tracks=COMPOSITE_TRACKS,
 
         raced_here = set(snap["deltas"].keys())
         is_decay   = snap.get("is_decay_snapshot", False)
+
+        # Suppress output during the warm-up window (state already updated above).
+        # Decay snapshots sit at the end of the timeline and always pass.
+        if (warmup_cutoff is not None and not is_decay
+                and datetime.fromisoformat(date) < warmup_cutoff):
+            continue
 
         hist_norm.append({
             "idx": global_idx, "date": date,
@@ -640,14 +669,16 @@ def build_trajectories(eng):
             for rider, (mu, sg) in snap["ratings"].items():
                 last_known[rider] = (mu, sg)
                 series = traj.get(rider)
+                # "x": 1 marks a synthetic inactivity-decay point (no real race).
+                # Kept for the rating/safe-Elo charts, dropped by the #1-club plot.
                 if series is None:
                     traj[rider] = [{"d": date,
                                     "m": round(float(mu), 5),
-                                    "s": round(float(sg), 5)}]
+                                    "s": round(float(sg), 5), "x": 1}]
                 elif series[-1]["d"] != date:
                     series.append({"d": date,
                                    "m": round(float(mu), 5),
-                                   "s": round(float(sg), 5)})
+                                   "s": round(float(sg), 5), "x": 1})
         else:
             date = snap["date"]
             for rider in snap["deltas"]:
@@ -697,6 +728,7 @@ def export_rider_timeseries(engine, engine_mt, comp_norm, comp_safe,
                         "d":  h["date"],
                         "v":  round(float(v), 5),
                         "vs": round(float(s_comp.get(rider, v)), 5),
+                        "x": 1,  # synthetic decay point — see build_trajectories
                     })
         else:
             for rider in h["raced"]:
@@ -827,25 +859,37 @@ def export_hall_of_fame(engine, engine_mt, comp_norm, comp_safe,
 
     def hof_for_engine(eng):
         running = {}
+        last_raced = {}   # rider -> datetime of most recent actual race
         lead_norm, lead_safe = [], []
         peak_norm, peak_safe = {}, {}   # rider -> (val, date, races)
         for snap in eng.history:
+            snap_date = datetime.fromisoformat(snap["date"])
             for rider in snap["deltas"]:
                 running[rider] = running.get(rider, 0) + 1
+                last_raced[rider] = snap_date
             rows = _ranked_rows(snap, running, min_races)
             if not rows:
                 lead_norm.append((snap["date"], None))
                 lead_safe.append((snap["date"], None))
                 continue
-            top_mu  = max(rows, key=lambda x: x[1])
-            top_low = max(rows, key=lambda x: x[2])
-            lead_norm.append((snap["date"], top_mu[0]))
-            lead_safe.append((snap["date"], top_low[0]))
+            # Peaks are all-time and NOT activity-gated — a peak stands forever.
             for rider, e, lo, n in rows:
                 if rider not in peak_norm or e > peak_norm[rider][0]:
                     peak_norm[rider] = (e, snap["date"], n)
                 if rider not in peak_safe or lo > peak_safe[rider][0]:
                     peak_safe[rider] = (lo, snap["date"], n)
+            # #1 reign is activity-gated: only riders who raced within the last
+            # ACTIVE_DAYS_FOR_NO1 days are eligible to wear the jersey here.
+            active = [row for row in rows
+                      if (snap_date - last_raced[row[0]]).days <= ACTIVE_DAYS_FOR_NO1]
+            if not active:
+                lead_norm.append((snap["date"], None))
+                lead_safe.append((snap["date"], None))
+                continue
+            top_mu  = max(active, key=lambda x: x[1])
+            top_low = max(active, key=lambda x: x[2])
+            lead_norm.append((snap["date"], top_mu[0]))
+            lead_safe.append((snap["date"], top_low[0]))
 
         def goat(peak):
             rows = sorted(peak.items(), key=lambda kv: -kv[1][0])[:goat_n]
@@ -861,24 +905,42 @@ def export_hall_of_fame(engine, engine_mt, comp_norm, comp_safe,
 
     def hof_composite():
         safe_by_idx = {h["idx"]: h for h in comp_safe}
+        last_raced = {}   # rider -> datetime of most recent actual race
         lead_norm, lead_safe = [], []
         peak_norm, peak_safe = {}, {}
         for h in comp_norm:
             sh = safe_by_idx.get(h["idx"], h)
+            h_date = datetime.fromisoformat(h["date"])
+            for r in h["raced"]:
+                last_raced[r] = h_date
+
+            def active(r):
+                lr = last_raced.get(r)
+                return lr is not None and (h_date - lr).days <= ACTIVE_DAYS_FOR_NO1
+
+            # Peaks all-time (not activity-gated); reign #1 activity-gated.
             if h["composites"]:
-                bn = max(h["composites"].items(), key=lambda kv: kv[1])
-                lead_norm.append((h["date"], bn[0]))
                 for r, v in h["composites"].items():
                     if r not in peak_norm or v > peak_norm[r][0]:
                         peak_norm[r] = (v, h["date"], h["qual_races"].get(r, 0))
+                live = [(r, v) for r, v in h["composites"].items() if active(r)]
+                if live:
+                    bn = max(live, key=lambda kv: kv[1])
+                    lead_norm.append((h["date"], bn[0]))
+                else:
+                    lead_norm.append((h["date"], None))
             else:
                 lead_norm.append((h["date"], None))
             if sh["composites"]:
-                bs = max(sh["composites"].items(), key=lambda kv: kv[1])
-                lead_safe.append((h["date"], bs[0]))
                 for r, v in sh["composites"].items():
                     if r not in peak_safe or v > peak_safe[r][0]:
                         peak_safe[r] = (v, h["date"], sh["qual_races"].get(r, 0))
+                live_s = [(r, v) for r, v in sh["composites"].items() if active(r)]
+                if live_s:
+                    bs = max(live_s, key=lambda kv: kv[1])
+                    lead_safe.append((h["date"], bs[0]))
+                else:
+                    lead_safe.append((h["date"], None))
             else:
                 lead_safe.append((h["date"], None))
 

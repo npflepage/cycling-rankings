@@ -1302,8 +1302,10 @@ function renderClub() {
 
   const tk = track === 'composite' ? 'composite' : track;
   const data = names.map(n => {
-    const series = state.riderSeries[n]?.[tk];
-    if (!series || !series.length) return null;
+    // Drop synthetic inactivity-decay points (p.x): the #1-club lines should
+    // stop where each rider actually stopped racing, not trail down to "now".
+    const series = (state.riderSeries[n]?.[tk] || []).filter(p => !p.x);
+    if (!series.length) return null;
     return {
       x: series.map(p => p.d),
       y: series.map(p => pointValue(p, tk)),
