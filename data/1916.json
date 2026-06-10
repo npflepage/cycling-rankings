@@ -1,0 +1,61 @@
+{
+  "year": 1916,
+  "races": [
+    {
+      "id": "giro_del_piemonte_1916",
+      "name": "Giro del Piemonte",
+      "date": "1916-07-09",
+      "category": "classic",
+      "points": 75,
+      "type": "punch",
+      "distance_km": 170.0,
+      "elevation_m": null,
+      "profile_score": null,
+      "gradient_final_km": null,
+      "won_how": "-",
+      "results": [
+        [1, "Cerutti Francesco"],
+        [2, "Ferraris Pietro"],
+        [3, "Abellonio Giovanni"],
+        [4, "Schierano Domenico"],
+        [5, "Santini Domenico"],
+        [6, "Mautino Giovanni"],
+        [7, "Baudone Enrico"],
+        [8, "Appendino Giuseppe"],
+        [9, "Pogliani Giovanni"],
+        [10, "Rocci Luigi"],
+        [11, "Gilardi Luigi"],
+        [12, "Beltramo Lino"],
+        [13, "Gaino Alberto"],
+        [14, "Pivano Eugenio"]
+      ]
+    },
+    {
+      "id": "giro_di_lombardia_1916",
+      "name": "Giro di Lombardia",
+      "date": "1916-11-05",
+      "category": "classic",
+      "points": 275,
+      "type": "mountain",
+      "distance_km": 232.0,
+      "elevation_m": null,
+      "profile_score": null,
+      "gradient_final_km": null,
+      "won_how": "10 km solo",
+      "results": [
+        [1, "Torricelli Leopoldo"],
+        [2, "Bertarelli Camillo"],
+        [3, "Sivocci Alfredo"],
+        [4, "Vay Angelo"],
+        [5, "Ferrario Arturo"],
+        [6, "Costa Costante"],
+        [7, "Schierano Domenico"],
+        [8, "Canepari Clemente"],
+        [9, "Benaglia Telesforo"],
+        [10, "Ferrario Ruggero"],
+        [11, "Tonani Alessandro"],
+        [12, "Cominetti Alfredo"]
+      ]
+    }
+  ]
+}

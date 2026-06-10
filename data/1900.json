@@ -1,0 +1,77 @@
+{
+  "year": 1900,
+  "races": [
+    {
+      "id": "paris_roubaix_1900",
+      "name": "Paris - Roubaix",
+      "date": "1900-04-15",
+      "category": "classic",
+      "points": 275,
+      "type": "cobbles",
+      "distance_km": 268.0,
+      "elevation_m": 2123,
+      "profile_score": 17,
+      "gradient_final_km": 0.0,
+      "won_how": "? km solo",
+      "results": [
+        [1, "Bouhours Emile"],
+        [2, "Fischer Josef"],
+        [3, "Garin Maurice"],
+        [4, "Itsweire Lucien"],
+        [5, "Lepoutre Oscar"],
+        [6, "Simon Edouard"],
+        [7, "Dubreucq Edouard"],
+        [8, "Aucouturier Hippolyte"],
+        [9, "Pagie Émile"],
+        [10, "Pothier Lucien"]
+      ]
+    },
+    {
+      "id": "bordeaux_paris_1900",
+      "name": "Bordeaux - Paris",
+      "date": "1900-06-10",
+      "category": "classic",
+      "points": 125,
+      "type": "sprint",
+      "distance_km": 594.0,
+      "elevation_m": null,
+      "profile_score": null,
+      "gradient_final_km": null,
+      "won_how": "-",
+      "results": [
+        [1, "Fischer Josef"],
+        [2, "Garin Maurice"],
+        [3, "Garin Ambroise"],
+        [4, "Frédérick Michel"],
+        [5, "Aucouturier Hippolyte"],
+        [6, "Alleaume Octave"],
+        [7, "Leblais Georges"],
+        [8, "Barbrel Louis"],
+        [9, "Pasquier Gustave"],
+        [10, "Lepetit Jean"]
+      ]
+    },
+    {
+      "id": "bol_d_or_1900",
+      "name": "Bol d'Or",
+      "date": "1900-09-15",
+      "category": "classic",
+      "points": 125,
+      "type": "sprint",
+      "distance_km": 956.8,
+      "elevation_m": null,
+      "profile_score": null,
+      "gradient_final_km": null,
+      "won_how": "-",
+      "results": [
+        [1, "Cordang Mathieu"],
+        [2, "Robl Thaddaus"],
+        [3, "Garin Maurice"],
+        [4, "Frédérick Michel"],
+        [5, "Foureaux Alexandre"],
+        [6, "Walters Albert Edward"],
+        [7, "Muller Rodolfo"]
+      ]
+    }
+  ]
+}

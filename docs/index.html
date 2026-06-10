@@ -588,8 +588,7 @@
       <p class="hero-sub">
         Partial-pairing Bradley–Terry model with calendar-time σ inflation
         and race-importance τ scaling. Each rider has a (μ, σ) at every point
-        in time across 8 discipline tracks, plus a cross-discipline
-        cumulative score.
+        in time across 8 discipline tracks.
       </p>
 
       <div class="stats-bar">
@@ -764,13 +763,14 @@ const COLORS = ['#F5C842','#E8431A','#4AAFFF','#6DE89A',
                 '#D86CF5','#FF8C42','#FFFFFF','#FF5577'];
 
 const TRACK_LABELS = {
-  ALL: 'All races', composite: 'Cumulative',
+  ALL: 'All races', /* composite: 'Cumulative', — composite track disabled */
   sprint: 'Sprint', TT: 'Time trial', cobbles: 'Cobbles',
   punch: 'Punch', mountain: 'Mountain', GC: 'GC',
   stage_race: 'Stage race', classics: 'Classics',
 };
 
-const TRACK_ORDER = ['ALL','composite','GC','stage_race','mountain','classics',
+// 'composite' (cumulative) track disabled — dropped from the tab order.
+const TRACK_ORDER = ['ALL','GC','stage_race','mountain','classics',
                      'sprint','punch','cobbles','TT'];
 
 const state = {

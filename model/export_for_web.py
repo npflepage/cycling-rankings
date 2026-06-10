@@ -633,8 +633,9 @@ def export_meta(races, engine, engine_mt, out_dir, min_races):
         "total_riders":      len(engine.ratings),
         "qualifying_riders": qualifying_riders,
         "tracks":            list(BT_TRACKS.keys()),
-        "composite_tracks":  COMPOSITE_TRACKS,
-        "composite_weights": COMPOSITE_WEIGHTS,
+        # composite track disabled:
+        # "composite_tracks":  COMPOSITE_TRACKS,
+        # "composite_weights": COMPOSITE_WEIGHTS,
         "type_counts":       dict(type_counts),
         "category_counts":   dict(cat_counts),
         "per_track_riders":  per_track_riders,
@@ -823,7 +824,7 @@ def export_top_history(engine, engine_mt, comp_norm, comp_safe,
     out = {"ALL": history_for(engine)}
     for track in engine_mt.tracks:
         out[track] = history_for(engine_mt.engines[track])
-    out["composite"] = composite_history()
+    # out["composite"] = composite_history()   # composite track disabled
 
     _write_json(out, out_dir / "top_history.json")
     print(f"  ✓ top_history.json  ({len(out)} engines)")
@@ -959,7 +960,7 @@ def export_hall_of_fame(engine, engine_mt, comp_norm, comp_safe,
     out = {"ALL": hof_for_engine(engine)}
     for track in engine_mt.tracks:
         out[track] = hof_for_engine(engine_mt.engines[track])
-    out["composite"] = hof_composite()
+    # out["composite"] = hof_composite()   # composite track disabled
 
     _write_json(out, out_dir / "hall_of_fame.json")
     print(f"  ✓ hall_of_fame.json  ({len(out)} engines)")
@@ -1068,9 +1069,15 @@ def main():
     else:
         print("⌛ Inactivity decay disabled (--decay-years-to-cap 0).")
 
-    print("⚙️  Computing composite (cumulative) trajectory ...")
-    comp_norm, comp_safe = compute_composite_history_both(
-        engine_mt, min_races=args.min_races)
+    # ── Composite ("cumulative") track DISABLED ──────────────────────────────
+    # The cross-discipline composite was found to add no analytical value, and
+    # its per-snapshot history (one full per-rider dict for every event over the
+    # whole timeline) is what exhausted memory on the large 126-year dataset.
+    # We pass empty histories so all exports simply omit the composite track.
+    # print("⚙️  Computing composite (cumulative) trajectory ...")
+    # comp_norm, comp_safe = compute_composite_history_both(
+    #     engine_mt, min_races=args.min_races)
+    comp_norm, comp_safe = [], []
 
     print(f"💾 Writing exports to {out_dir}/ ...")
     export_meta(races, engine, engine_mt, out_dir, args.min_races)
